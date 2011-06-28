@@ -17,6 +17,9 @@ trait Moniker {
   def getPath : String
   def getQuery : String
   def getFragment : String
+  
+  def withPort(port: Int) : Moniker
+  def withPath(path: String) : Moniker
 }
 case class MURI( uri : URI ) extends Moniker {
   override def getScheme : String = uri.getScheme
@@ -25,6 +28,34 @@ case class MURI( uri : URI ) extends Moniker {
   override def getPath : String = uri.getPath
   override def getQuery : String = uri.getQuery
   override def getFragment : String = uri.getFragment
+
+  def withPort(port: Int) : Moniker = {
+    MURI(
+      new URI(
+	uri.getScheme(),
+	uri.getUserInfo(),
+	uri.getHost(),
+	port,
+	uri.getPath(),
+	uri.getQuery(),
+	uri.getFragment()
+      )
+    )
+  }
+
+  def withPath(path: String) : Moniker = {
+    MURI( 
+      new URI(
+	uri.getScheme(),
+	uri.getUserInfo(),
+	uri.getHost(),
+	uri.getPort(),
+	path,
+	uri.getQuery(),
+	uri.getFragment()
+      )
+    )
+  }
 }
 case class MURN( uri : URI ) extends Moniker {
   override def getScheme : String = uri.getScheme
@@ -33,6 +64,34 @@ case class MURN( uri : URI ) extends Moniker {
   override def getPath : String = uri.getPath
   override def getQuery : String = uri.getQuery
   override def getFragment : String = uri.getFragment
+
+  def withPort(port: Int) : Moniker = {
+    MURI(
+      new URI(
+	uri.getScheme(),
+	uri.getUserInfo(),
+	uri.getHost(),
+	port,
+	uri.getPath(),
+	uri.getQuery(),
+	uri.getFragment()
+      )
+    )
+  }
+
+  def withPath(path: String) : Moniker = {
+    MURI( 
+      new URI(
+	uri.getScheme(),
+	uri.getUserInfo(),
+	uri.getHost(),
+	uri.getPort(),
+	path,
+	uri.getQuery(),
+	uri.getFragment()
+      )
+    )
+  }
 }
 case class MURL( url : URL ) extends Moniker {
   override def getScheme : String = url.getProtocol
@@ -41,6 +100,14 @@ case class MURL( url : URL ) extends Moniker {
   override def getPath : String = url.getPath
   override def getQuery : String = url.getQuery
   override def getFragment : String = ""
+
+  def withPort( port : Int ) : Moniker = {
+    MURI( url.toURI ).withPort( port )
+  }
+
+  def withPath( path : String ) : Moniker = {
+    MURI( url.toURI ).withPath( path )
+  }
 }
 
 class URM(
@@ -97,6 +164,16 @@ class URM(
 	}
       }
     }
+
+  // BUGBUG -- lgm : this may come back to bite!
+  def withPort( port : Int ) : Moniker = {
+    MURI( uri ).withPort( port )
+  }
+
+  def withPath( path : String ) : Moniker = {
+    MURI( uri ).withPath( path )
+  }
+
   def significantBit( path : String ) = ""
   override def equals( theOther : Any ) : Boolean = {
     (

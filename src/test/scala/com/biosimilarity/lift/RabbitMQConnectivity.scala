@@ -57,9 +57,10 @@ object RabbitMQConnectivityTestSpecs extends Specification {
     "send and receive values over rabbitmq queue" in {
       var msgCount = 0
       val sma1 = SMJATwistedPair[Msg]( "localhost", "localhost" )
-      sma1.jsonSender( "myFavoriteQueue" )
+      val exchangeName = UUID.randomUUID().toString
+      sma1.jsonSender( exchangeName )
       sma1.jsonDispatcher(
-	"myFavoriteQueue",
+	exchangeName,
 	( x ) => {
 	  println( "received : " + x )
 	  msgCount += 1
@@ -72,7 +73,7 @@ object RabbitMQConnectivityTestSpecs extends Specification {
       while ( msgCount < 10 ) {
 	Thread.sleep( 100 )
       }
-      
+
       msgCount must be >= 10
     }
   }

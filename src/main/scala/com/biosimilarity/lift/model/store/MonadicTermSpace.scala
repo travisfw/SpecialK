@@ -46,9 +46,11 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.OutputStreamWriter
 
-trait MonadicTermTypes[Namespace,Var,Tag,Value] {
+trait MonadicTermTypes[Namespace,Var,Tag,Value] extends MonadicGenerators {
+
   trait Resource
   case class Ground( v : Value ) extends Resource
+  case class Cursor( v : Generator[Resource,Unit,Unit] ) extends Resource
   case class RMap(
     m : TMapR[Namespace,Var,Tag,Value]
   ) extends Resource
@@ -472,7 +474,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    ( this + "getting locally for location : " + path )
 	  )
 	  reset {
-	    for( v <- get( List( msrc ) )( path ) ) {
+	    for( v <- get( List( msrc ) )( false )( path ) ) {
 	      tweet(
 		(
 		  this 
@@ -606,7 +608,8 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     def mget( ask : dAT.Ask, hops : List[Moniker] )(
       channels : Map[mTT.GetRequest,mTT.Resource],
       registered : Map[mTT.GetRequest,List[RK]],
-      consume : Boolean
+      consume : Boolean,
+      cursor : Boolean
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
@@ -617,7 +620,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path ) 
+		  oV <- mget( channels, registered, consume )( path )
 		) {
 		  oV match {
 		    case None => {
@@ -636,7 +639,8 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     def mget( ask : dAT.AskNum, hops : List[Moniker] )(
       channels : Map[mTT.GetRequest,mTT.Resource],
       registered : Map[mTT.GetRequest,List[RK]],
-      consume : Boolean
+      consume : Boolean,
+      cursor : Boolean
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
@@ -647,7 +651,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path ) 
+		  oV <- mget( channels, registered, consume )( path )
 		) {
 		  oV match {
 		    case None => {
@@ -665,6 +669,8 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
   
     //def get( hops : List[URI] )(
     def get( hops : List[Moniker] )(
+      cursor : Boolean
+    )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
@@ -675,15 +681,24 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       
       //mget( dAT.AGet, hops )(
       mget( dAT.AGetNum, hops )(
-	theMeetingPlace, theWaiters, true
+	theMeetingPlace, theWaiters, true, cursor
       )( path )    
+    }
+
+    def get(
+      cursor : Boolean
+    )(
+      path : CnxnCtxtLabel[Namespace,Var,Tag]
+    )
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+      get( Nil )( cursor )( path )
     }
 
     override def get(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      get( Nil )( path )    
+      get( Nil )( false )( path )
     }
 
     def getValueWithSuspension(
@@ -753,7 +768,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 
       //mget( dAT.AFetch, hops )(
       mget( dAT.AFetchNum, hops )(
-	theMeetingPlace, theWaiters, false
+	theMeetingPlace, theWaiters, false, false
       )( path )    
     }
 
@@ -798,7 +813,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 
       //mget( dAT.ASubscribe, hops )(
       mget( dAT.ASubscribeNum, hops )(
-	theChannels, theSubscriptions, true
+	theChannels, theSubscriptions, true, false
       )( path )    
     }
 

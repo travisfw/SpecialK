@@ -157,7 +157,7 @@ object BX extends BaseXXMLStore
   }
 
   lazy val dataSets = loadDataSets
-  
+
   def reportGraphs = {
     for( dataSet <- dataSets.take( 3 ) ) {
       val xqSrvc =

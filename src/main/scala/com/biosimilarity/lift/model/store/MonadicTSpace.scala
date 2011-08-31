@@ -135,7 +135,8 @@ with FJTaskRunners
   def mgetWithSuspension(
     channels : Map[Place,Resource],
     registered : Map[Place,List[RK]],
-    consume : Boolean
+    consume : Boolean,
+    cursor : Boolean
   )( ptn : Pattern )
   : Generator[Option[Resource],Unit,Unit] =
     Generator {
@@ -205,7 +206,7 @@ with FJTaskRunners
 		  registered.get( place ).getOrElse( Nil ) ++ List( rk )
 		rk( None )
 	      }
-	      else {
+              else {
 		for(
 		  placeNRrscNSubst <- itergen[PlaceInstance](
 		    meets
@@ -221,19 +222,20 @@ with FJTaskRunners
 		  
 		  //shift { k : ( Unit => Unit ) => k() }
  		}
- 	      }
+
  	      tweet( "get returning" )
  	      outerk()
- 	    }
+            }
  	}
      }
+    }
 
   def get( ptn : Pattern ) =
     mget( theMeetingPlace, theWaiters, true )( ptn )
   def fetch( ptn : Pattern ) =
     mget( theMeetingPlace, theWaiters, false )( ptn )
   def subscribe( ptn : Pattern ) =
-    mget( theChannels, theSubscriptions, true )( ptn )  
+    mget( theChannels, theSubscriptions, true )( ptn )
 
   def mputWithSuspension(
     channels : Map[Place,Resource],

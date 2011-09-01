@@ -93,6 +93,43 @@ object PersistedMonadicTermStoreTestSpecs extends Specification {
       eVal.indexOf("Connected") must be >= 0
     }
 
+    "Fetch values from the GraphFour DB by Cursor" in {
+      reset {
+	for( e <- pimgJunq.fetch( true )( oge ) )
+	  {
+	    println( "received: " + e )
+	    e match {
+	      case Some(
+		mTT.RBound(
+		  Some( mTT.Cursor( graphSpec ) ),
+		  None
+		)
+	      ) => {
+		for ( v <- graphSpec)
+                {
+                  eVal = eVal + v.toString
+                  //eVal = "good"
+                }
+                println( "parsed cursor: " + eVal )
+	      }
+	      case _ => {
+		throw new Exception(
+		  "received unexpected value from test " + e
+		)
+	      }
+	    }
+	  }
+      }
+
+      while ( eVal == ""  && sleepCount < 25) {
+        sleepCount += 1
+	Thread.sleep( 100 )
+      }
+
+      eVal.length must be >= 0
+      eVal.indexOf("Connected") must be >= 0
+    }
+
     "Get values from the GraphFour DB by Cursor" in {
       reset {
 	for( e <- pimgJunq.get( true )( oge ) )

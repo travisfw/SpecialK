@@ -123,7 +123,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     override def tap [A] ( fact : A ) : Unit = {
       reportage( fact )
     }
-    
     override val theMeetingPlace =
       new mTT.TMapR[Namespace,Var,Tag,Value]()
     override val theChannels =
@@ -416,6 +415,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
+                 
 	      )
 	    )
 	    
@@ -430,6 +430,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
+                 
 	      )
 	    )
 	    
@@ -441,6 +442,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
+                 
 	      )
 	    )
 	    
@@ -453,6 +455,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		this 
 		+ " not sending composite value " + oV
 		+ " back "
+                 
 	      )
 	    )
 	  }
@@ -466,12 +469,12 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	msgId, mtrgt, msrc, lbl, body, _
       ) = dreq
 
-      tweet( this + "handling : " + dreq	)
+      tweet( this + "handling : " + dreq  )
 
       body match {
 	case dgreq@Msgs.MDGetRequest( path ) => {	  
 	  tweet(
-	    ( this + "getting locally for location : " + path )
+	    ( this + "getting locally for location : " + path  )
 	  )
 	  reset {
 	    for( v <- get( List( msrc ) )( false )( path ) ) {
@@ -490,10 +493,10 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	
 	case dfreq@Msgs.MDFetchRequest( path ) => {
 	  tweet(
-	    ( this + "fetching locally for location : " + path )
+	    ( this + "fetching locally for location : " + path  )
 	  )
 	  reset {
-	    for( v <- fetch( List( msrc ) )( path ) ) {
+	    for( v <- fetch( List( msrc ) )( false )( path ) ) {
 	      tweet(
 		(
 		  this 
@@ -509,7 +512,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 
 	case dsreq@Msgs.MDSubscribeRequest( path ) => {
 	  tweet(
-	    ( this + "fetching locally for location : " + path )
+	    ( this + "fetching locally for location : " + path  )
 	  )
 	  reset {
 	    for( v <- subscribe( List( msrc ) )( path ) ) {
@@ -565,6 +568,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    (
 	      this 
 	      + " handling unexpected message : " + body
+               
 	    )
 	  )
 	}
@@ -583,6 +587,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	      this + " handling : " + dmsg
 	      + " from " + msrc
 	      + " on behalf of " + mtrgt
+               
 	    )
 	  )
 	  handleRequest( dreq )
@@ -597,6 +602,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	      this + " handling : " + dmsg
 	      + " from " + msrc
 	      + " on behalf of " + mtrgt
+               
 	    )
 	  )
 	  handleResponse( drsp )
@@ -655,7 +661,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		) {
 		  oV match {
 		    case None => {
-		      tweet( ">>>>> forwarding..." )
+		      tweet( ">>>>> forwarding..."  )
 		      forward( ask, hops, path )
 		      rk( oV )
 		    }
@@ -758,6 +764,8 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 
     //def fetch( hops : List[URI] )(
     def fetch( hops : List[Moniker] )(
+      cursor : Boolean
+    )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
@@ -768,15 +776,24 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 
       //mget( dAT.AFetch, hops )(
       mget( dAT.AFetchNum, hops )(
-	theMeetingPlace, theWaiters, false, false
+	theMeetingPlace, theWaiters, false, cursor
       )( path )    
+    }
+
+    def fetch(
+      cursor : Boolean
+    )(
+      path : CnxnCtxtLabel[Namespace,Var,Tag]
+    )
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+      get( Nil )( cursor )( path )
     }
 
     override def fetch(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      fetch( Nil )( path )    
+      fetch( Nil )( false )( path )
     }
 
     def fetchValue(

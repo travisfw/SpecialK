@@ -304,6 +304,13 @@ trait SemiMonadicJSONAMQPTwistedPair[T]
   //def trgtURI : URI
   def trgtURI : Moniker
 
+  def getPort(uriPort: Int, defaultPort: Int): Int = {
+    uriPort match {
+      case -1 => defaultPort
+      case _ => uriPort
+    }
+  }
+
   var _jsonDispatcher : Option[StdMonadicJSONAMQPDispatcher[T]] = None
   def jsonDispatcher( handle : T => Unit )(
     implicit dispatchOnCreate : Boolean, port : Int
@@ -403,6 +410,16 @@ class SMJATwistedPair[T](
 }
 
 object SMJATwistedPair {
+
+  def apply[T] (
+    srcURI : Moniker, trgtURI : Moniker
+  ) : SMJATwistedPair[T] = {
+    new SMJATwistedPair[T](
+         srcURI,
+         trgtURI
+    )
+  }
+
   def apply[T] (
     srcIPStr : String, trgtIPStr : String
   ) : SMJATwistedPair[T] = {

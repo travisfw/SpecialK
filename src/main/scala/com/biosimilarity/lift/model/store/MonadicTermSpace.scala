@@ -46,8 +46,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.OutputStreamWriter
 
-trait MonadicTermTypes[Namespace,Var,Tag,Value] extends MonadicGenerators {
-
+trait MonadicTermTypes[Namespace,Var,Tag,Value] 
+extends MonadicGenerators {
   trait Resource
   case class Ground( v : Value ) extends Resource
   case class Cursor( v : Generator[Resource,Unit,Unit] ) extends Resource
@@ -123,6 +123,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     override def tap [A] ( fact : A ) : Unit = {
       reportage( fact )
     }
+    
     override val theMeetingPlace =
       new mTT.TMapR[Namespace,Var,Tag,Value]()
     override val theChannels =
@@ -415,7 +416,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
-                 
 	      )
 	    )
 	    
@@ -430,7 +430,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
-                 
 	      )
 	    )
 	    
@@ -442,7 +441,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
-                 
 	      )
 	    )
 	    
@@ -455,7 +453,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		this 
 		+ " not sending composite value " + oV
 		+ " back "
-                 
 	      )
 	    )
 	  }
@@ -469,12 +466,12 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	msgId, mtrgt, msrc, lbl, body, _
       ) = dreq
 
-      tweet( this + "handling : " + dreq  )
+      tweet( this + "handling : " + dreq )
 
       body match {
 	case dgreq@Msgs.MDGetRequest( path ) => {	  
 	  tweet(
-	    ( this + "getting locally for location : " + path  )
+	    ( this + "getting locally for location : " + path )
 	  )
 	  reset {
 	    for( v <- get( List( msrc ) )( false )( path ) ) {
@@ -493,7 +490,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	
 	case dfreq@Msgs.MDFetchRequest( path ) => {
 	  tweet(
-	    ( this + "fetching locally for location : " + path  )
+	    ( this + "fetching locally for location : " + path )
 	  )
 	  reset {
 	    for( v <- fetch( List( msrc ) )( false )( path ) ) {
@@ -512,7 +509,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 
 	case dsreq@Msgs.MDSubscribeRequest( path ) => {
 	  tweet(
-	    ( this + "fetching locally for location : " + path  )
+	    ( this + "fetching locally for location : " + path )
 	  )
 	  reset {
 	    for( v <- subscribe( List( msrc ) )( path ) ) {
@@ -568,7 +565,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    (
 	      this 
 	      + " handling unexpected message : " + body
-               
 	    )
 	  )
 	}
@@ -587,7 +583,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	      this + " handling : " + dmsg
 	      + " from " + msrc
 	      + " on behalf of " + mtrgt
-               
 	    )
 	  )
 	  handleRequest( dreq )
@@ -602,7 +597,6 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	      this + " handling : " + dmsg
 	      + " from " + msrc
 	      + " on behalf of " + mtrgt
-               
 	    )
 	  )
 	  handleResponse( drsp )
@@ -626,7 +620,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path )
+		  oV <- mget( channels, registered, consume )( path ) 
 		) {
 		  oV match {
 		    case None => {
@@ -657,11 +651,11 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path )
+		  oV <- mget( channels, registered, consume )( path ) 
 		) {
 		  oV match {
 		    case None => {
-		      tweet( ">>>>> forwarding..."  )
+		      tweet( ">>>>> forwarding..." )
 		      forward( ask, hops, path )
 		      rk( oV )
 		    }
@@ -698,13 +692,29 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {
       get( Nil )( cursor )( path )
-    }
+    }    
+
+    //def get( hops : List[URI] )(
+    // def get( hops : List[Moniker] )(
+//       path : CnxnCtxtLabel[Namespace,Var,Tag]
+//     )
+//     : Generator[Option[mTT.Resource],Unit,Unit] = {        
+      
+      // Dummy declarations to avoid a bug in the scala runtime
+      // val das = dAT.AGet
+//       val dasClass = dAT.AGet.getClass
+      
+      //mget( dAT.AGet, hops )(
+//       mget( dAT.AGetNum, hops )(
+// 	theMeetingPlace, theWaiters, true, false
+//       )( path )    
+//     }
 
     override def get(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      get( Nil )( false )( path )
+      get( Nil )( false )( path )    
     }
 
     def getValueWithSuspension(
@@ -789,11 +799,27 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       get( Nil )( cursor )( path )
     }
 
+    //def fetch( hops : List[URI] )(
+//     def fetch( hops : List[Moniker] )(
+//       path : CnxnCtxtLabel[Namespace,Var,Tag]
+//     )
+//     : Generator[Option[mTT.Resource],Unit,Unit] = {        
+      
+      // Dummy declarations to avoid a bug in the scala runtime
+      // val das = dAT.AFetch
+//       val dasClass = dAT.AFetch.getClass
+
+      //mget( dAT.AFetch, hops )(
+//       mget( dAT.AFetchNum, hops )(
+// 	theMeetingPlace, theWaiters, false, false
+//       )( path )    
+//     }
+
     override def fetch(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      fetch( Nil )( false )( path )
+      fetch( Nil )( false )( path )    
     }
 
     def fetchValue(

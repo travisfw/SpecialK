@@ -6,9 +6,8 @@
 // Description: 
 // ------------------------------------------------------------------------
 
-package com.biosimilarity.lift.lib
+package com.biosimilarity.lift.test.lib
 
-import moniker._
 import org.specs._
 import org.specs.util._
 import org.specs.runner.JUnit4
@@ -19,18 +18,42 @@ import com.biosimilarity.lift.model.store.xml._
 import com.biosimilarity.lift.model.store.xml.datasets._
 import com.biosimilarity.lift.model.agent._
 import com.biosimilarity.lift.model.msg._
+import com.biosimilarity.lift.model.store.usage._
 import com.biosimilarity.lift.lib._
+import moniker._
 import com.biosimilarity.lift.lib.extensions.StringExtensions._
 import com.biosimilarity.lift.lib.extensions.URIExtensions._
 import com.biosimilarity.lift.lib.extensions.URMExtensions._
 import com.biosimilarity.lift.lib.usage._
-import com.biosimilarity.lift.model.store.usage._
+
+import scala.concurrent.{Channel => Chan, _}
+import scala.concurrent.cpsops._
+import scala.util.continuations._ 
+import scala.xml._
+
+import org.prolog4j._
+
+import org.xmldb.api.base.{ Resource => XmlDbRrsc, _}
+import org.xmldb.api.modules._
+import org.xmldb.api._
+
+//import org.exist.util.serializer.SAXSerializer
+//import org.exist.util.serializer.SerializerPool
+
+import com.thoughtworks.xstream.XStream
+import com.thoughtworks.xstream.io.json.JettisonMappedXmlDriver
+
+import javax.xml.transform.OutputKeys
+import java.util.Properties
+import java.net.URI
+import java.util.UUID
+
 
 class RabbitMQConnectivityTest
-  extends JUnit4(RabbitMQConnectivityTestSpecs)
+extends JUnit4(RabbitMQConnectivityTestSpecs)
 
 object RabbitMQConnectivityTestSpecsRunner
-  extends ConsoleRunner(RabbitMQConnectivityTestSpecs)
+extends ConsoleRunner(RabbitMQConnectivityTestSpecs)
 
 
 object RabbitMQConnectivityTestSpecs extends Specification

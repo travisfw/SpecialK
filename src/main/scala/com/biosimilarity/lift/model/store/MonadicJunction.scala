@@ -16,6 +16,7 @@ import com.biosimilarity.lift.lib.moniker._
 import net.liftweb.amqp._
 
 import scala.util.continuations._ 
+import scala.concurrent.{Channel => Chan, _}
 import scala.concurrent.cpsops._
 import scala.collection.mutable.Map
 import scala.collection.mutable.HashMap
@@ -36,7 +37,6 @@ import java.util.UUID
 import java.net.URI
 import java.io.ByteArrayOutputStream
 import java.io.ObjectOutputStream
-import scala.concurrent.{FJTaskRunners, Channel => Chan}
 
 trait MonadicDTSMsgScope[Namespace,Var,Tag,Value]
 extends DTSMsgScope[Namespace,Var,Tag,Value]
@@ -99,7 +99,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	  val jd =
 	    new StdMonadicAgentJSONAMQPDispatcher[Msgs.JTSReqOrRsp](
 	      srcURI.getHost,
-              getPort(srcURI.getPort, defaultPort),
+	      getPort(srcURI.getPort, defaultPort),
 	      new ListBuffer[Msgs.JTSReq](),
 	      new ListBuffer[Msgs.JTSRsp](),
 	      //Some( new LinkedHashMap[URI,Socialite[Msgs.DReq,Msgs.DRsp]]() ),
@@ -236,7 +236,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
   }
 
   object SMAJATwistedPair {
-     def apply (
+    def apply (
       srcURI : Moniker, trgtURI : Moniker
     ) : SMAJATwistedPair = {
       new SMAJATwistedPair(
@@ -282,21 +282,21 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
     //def acqQName( acqURI : URI ) : String
     def acqQName( acqURI : Moniker ) : String
 
-    //todo:implement setLoggingLevel
-//    override def setLoggingLevel( verb : Verbosity ) : Unit = {
-//      _loggingLevel = Some( verb )
-//      for( ( uri, acquaintance ) <- agentTwistedPairs ) {
-//	acquaintance match {
-//	  case sma : SMAJATwistedPair => {
-//	    sma.setLoggingLevel( verb )
-//	  }
-//	}
-//      }
-//    }
-//
+    override def setLoggingLevel( verb : Verbosity ) : Unit = {
+      _loggingLevel = Some( verb )
+      for( ( uri, acquaintance ) <- agentTwistedPairs ) {
+	acquaintance match {
+	  case sma : SMAJATwistedPair => {
+	    sma.setLoggingLevel( verb )
+	  }
+	}
+      }
+    }
+    
+    //def meetNGreet( acquaintances : Seq[URI] )
     def meetNGreet( acquaintances : Seq[Moniker] )
-//    : Map[URI,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
-    : Map[Moniker,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
+    : //Map[URI,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
+    Map[Moniker,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
       {
 	//val map = new HashMap[URI,SemiMonadicAgentJSONAMQPTwistedPair[String]]()
 	val map = new HashMap[Moniker,SemiMonadicAgentJSONAMQPTwistedPair[String]]()
@@ -365,7 +365,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
   with QueueNameVender
   //with WireTap
   //with Journalist
-  //with Reporting
+  //with ConfiggyReporting
   //with ConfiguredJournal
   //with ConfigurationTrampoline
   {
@@ -425,7 +425,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		    this 
 		    + "handling : "
 		    + dgreq
-                    
 		  )
 		)
 
@@ -447,7 +446,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			    + path
 			    + "\nwith value : " 
 			    + v
-                            
 			  )
 			)
 
@@ -464,7 +462,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 				+ " sending value "
 				+ v
 				+ " back "
-                                
 			      )
 			    )
 
@@ -485,7 +482,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 				+ " sending value "
 				+ v
 				+ " back "
-                                
 			      )
 			    )
 
@@ -503,7 +499,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 				+ " sending value "
 				+ v
 				+ " back "
-                                
 			      )
 			    )
 
@@ -521,7 +516,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 				+ " not sending composite value "
 				+ v
 				+ " back "
-                                
 			      )
 			    )
 			  }
@@ -545,7 +539,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		    this 
 		    + "handling : "
 		    + dfreq
-                    
 		  )
 		)
 		val k =
@@ -580,7 +573,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		    this
 		    + " handling : "
 		    + dpreq
-                    
 		  )
 		)
 		put( path, value )
@@ -610,7 +602,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		  this 
 		  + " handling unexpected message : "
 		  + body
-
 		)
 	      )
 	    }
@@ -635,7 +626,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	      + msrc
 	      + " on behalf of "
 	      + mtrgt
-              
 	    )
 	  )
 	  handleRequest( dreq )
@@ -654,7 +644,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	      + msrc
 	      + " on behalf of "
 	      + mtrgt
-              
 	    )
 	  )
 	  handleResponse( drsp )
@@ -686,7 +675,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			this
 			+ " storing continuation to wait for value : "
 			+ k
-                        
 		      )
 		    )
 		    _waiters( place ) =
@@ -697,7 +685,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		      (
 			this 
 			+ " forwarding to acquaintances "
-
 		      )
 		    )
 
@@ -711,7 +698,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		  this
 		  + " resuming with value : "
 		  + rslt
-                  
 		)
 	      )
 	      rslt match {
@@ -818,7 +804,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 				+ " storing continuation "
 				+ wk + " to wait for values "
 				+ asks
-                                
 			      )
 			    )
 			    
@@ -845,7 +830,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			  this
 			  + " resuming with value : "
 			  + rslt
-                          
 			)
 		      )
 		      
@@ -866,7 +850,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		      }
 		    }
 
-		  tweet( "join resuming with result: " + oRsrc  )
+		  tweet( "join resuming with result: " + oRsrc )
 
 		  k( oRsrc )
 		}
@@ -885,7 +869,6 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
       k : ( Option[Resource] => Unit @suspendable ) =>
 	tweet(
 	  "Agent is serving now... "
-          
 	)
       val locations =
 	placePatterns.flatMap(

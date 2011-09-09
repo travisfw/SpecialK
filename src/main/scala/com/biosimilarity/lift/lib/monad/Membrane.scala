@@ -8,8 +8,9 @@
 
 package com.biosimilarity.lift.lib.monad
 
-trait ForNotationAdapter[Shape[_],A] {
+trait ForNotationShiv[Shape[_],A] {
   self : BMonad[Shape] with MonadFilter[Shape] =>
+    type ForNotationTrampoline[A] <: Membrane[A] with Filter[A]
     // One approach to trampolining to Scala's for-notation is
     // presented below. We provide an Option-like structure, called
     // Membrane, which represents the basic interface to
@@ -84,7 +85,7 @@ trait ForNotationAdapter[Shape[_],A] {
   // which we have provided a monadic interpretation -- as witnessed
   // by the self-type above.
 
-  case class SCell[A]( sa : Shape[A] )
+  class SCell[A]( val sa : Shape[A] )
        extends Membrane[A] with Filter[A]
   {
     override def flatMap [B] ( f : A => Membrane[B] ) : Membrane[B] = {
@@ -94,7 +95,7 @@ trait ForNotationAdapter[Shape[_],A] {
 	  ( a : A ) => {
 	    f( a ) match {
 	      case Open => throw new Exception( "Encountered open cell" )
-	      case SCell( sb ) => sb
+	      case SCell( sb : Shape[B] ) => sb
 	      case Cell( b ) => unit[B]( b )
 	    }
 	  }
@@ -118,20 +119,70 @@ trait ForNotationAdapter[Shape[_],A] {
     def withFilter( pred : A => Boolean ) : Membrane[A] with Filter[A] = {
       SCell[A]( mfilter[A]( sa, pred ) )
     }
-  }  
+
+    override def equals( o : Any ) : Boolean = {
+      o match {
+	case that : SCell[A] => {
+	  sa.equals( that.sa )
+	}
+	case _ => false
+      }
+    }
+    override def hashCode( ) : Int = {
+      37 * sa.hashCode
+    }
+  }
+
+  object SCell {
+    def apply [A] ( sa : Shape[A] ) : SCell[A] = {
+      SCell[A]( sa )
+    }
+    def unapply [A] ( sca : SCell[A] ) : Option[( Shape[A] )] = {
+      Some( ( sca.sa ) )
+    }
+  } 
+  
+}
+
+trait ForNotationApplyShiv[Shape[_],A] {
+  self : ForNotationShiv[Shape,A] =>
+    def apply [A] ( sa : Shape[A] ) : ForNotationTrampoline[A]
+}
+
+trait ForNotationStdApplyShiv[Shape[_],A] {
+  self : ForNotationShiv[Shape,A] =>
+    type ForNotationTrampoline[A] = SCell[A]
+
+  def apply [A] ( sa : Shape[A] ) : ForNotationTrampoline[A] = {
+    new self.SCell[A]( sa )
+  }
+}
+
+trait ForNotationImplicitsShiv[Shape[_],A] {
+  self : ForNotationShiv[Shape,A] =>
+    type ForNotationTrampoline[A] = SCell[A]
 
   // Next, we provide some useful implicits:
   // One to enclose Shape's in Membrane's ...
-  implicit def toMembrane [A] ( s : Shape[A] ) : Membrane[A] with Filter[A] =
-    SCell[A]( s )
+  implicit def toMembrane [A] (
+    s : Shape[A]
+  ) : ForNotationTrampoline[A] = {
+    self.SCell[A]( s )
+  }
 
   // ... and one to open the enclosure
   implicit def toShape [A] ( s : Membrane[A] ) : Shape[A] = {
     s match {
-      case SCell( sa ) => sa
+      case self.SCell( sa : Shape[A] ) => sa
       case _ => throw new Exception( "value escaping enclosure" )
     }
-  }
+  }  
+}
+
+trait ForNotationAdapter[Shape[_],A]
+  extends ForNotationShiv[Shape,A]
+  with ForNotationImplicitsShiv[Shape,A] {
+    self : BMonad[Shape] with MonadFilter[Shape] =>
 }
 
 trait FNMonadT[T[M[_],_],M[_],A]

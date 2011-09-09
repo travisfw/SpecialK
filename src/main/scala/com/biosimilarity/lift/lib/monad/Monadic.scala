@@ -31,11 +31,96 @@ trait MonadicGenerators {
     def foreach( f : (A => B @suspendable) ) : C @suspendable = {
       funK( f )
     }
+    def map [Aprime] ( g : A => Aprime ) : Generable[Aprime,B,C]
+    def mapSrc [Aprime] ( g : A => Aprime ) : Generable[Aprime,B,C]
+    def mapTrgt [Bprime] ( g : Bprime => B ) : Generable[A,Bprime,C]
+  
+    def flatMap [Aprime >: A, Bprime <: B, Cprime >: C] (
+      g : Aprime => Generable[Aprime,Bprime,Cprime]
+    ) : Generable[Aprime,Bprime,Cprime]
+
+    def filter( pred : A => Boolean ) : Generable[Option[A],B,C] 
+
+    def map [Aprime] ( f : ( Aprime => B @suspendable ) )(
+      g : A => Aprime
+    ) : (C @suspendable) = {
+      map( g ).funK( f )
+    }
+    def mapSrc [Aprime] ( f : ( Aprime => B @suspendable ) )(
+      g : A => Aprime
+    ) : (C @suspendable) = {
+      mapSrc( g ).funK( f )
+    }
+    def mapTrgt [Bprime] ( f : ( A => Bprime @suspendable ) )(
+      g : Bprime => B
+    ) : (C @suspendable) = {
+      mapTrgt( g ).funK( f )
+    }
+  
+    def flatMap [Aprime >: A, Bprime <: B, Cprime >: C] (
+      f : ( Aprime => Bprime @suspendable )
+    )(
+      g : Aprime => Generable[Aprime,Bprime,Cprime]
+    ) : (Cprime @suspendable) = {
+      flatMap( g ).funK( f )
+    }
+    
+    def filter ( f : ( Option[A] => B @suspendable ) )(
+      pred : A => Boolean
+    ) : (C @suspendable) = {
+      filter( pred ).funK( f )
+    }
+    
   }
 
   case class Generator[+A,-B,+C](
     override val funK : (A => (B @suspendable)) => (C @suspendable)
-  ) extends Generable[A,B,C] {   
+  ) extends Generable[A,B,C] {               
+    override def map [Aprime] (
+      g : A => Aprime
+    ) : Generable[Aprime,B,C] = mapSrc[Aprime]( g )
+    override def mapSrc [Aprime] (
+      g : A => Aprime
+    ) : Generable[Aprime,B,C] = {
+      Generator {
+	k : ( Aprime => B @suspendable ) =>
+	  funK( ( a : A ) => k( g( a ) ) )
+      }
+    }
+    override def mapTrgt [Bprime] (
+      g : Bprime => B
+    ) : Generable[A,Bprime,C] = {
+      Generator {
+	k : ( A => Bprime @suspendable ) =>
+	  funK( ( a : A ) => g( k( a ) ) )
+      }
+    }
+
+    override def flatMap [Aprime >: A, Bprime <: B, Cprime >: C] (
+      g : Aprime => Generable[Aprime,Bprime,Cprime]
+    ) : Generable[Aprime,Bprime,Cprime] = {
+      Generator {
+	k : ( Aprime => Bprime @suspendable ) => {
+	  // this is a hack!
+	  // we really need to calculate a coend to eliminate the
+	  // dependency on A
+	  var rA : Option[Aprime] = None 
+	  funK( ( a : A ) => { rA = Some( a ); k( a ) } )
+	  rA match {
+	    case Some( a ) => g( a ).funK( k )
+	    case _ => throw new Exception( "Should never get here!" )
+	  }
+	}
+      }
+    }
+
+    override def filter(
+      pred : A => Boolean
+    ) : Generable[Option[A],B,C] = {
+      mapSrc[Option[A]](
+	( a : A ) => { if ( pred( a ) ) { Some( a ) } else { None } }
+      )
+    }
   }
 
   // this is really map... fix!
@@ -95,14 +180,18 @@ trait MonadicConcurrentGenerators {
       }
 }
 
-trait MonadicWireToTrgtConversion 
-{
-  self : MonadicGenerators with WireTap with Journalist =>
-
+trait WireToTrgtConversion {
   type Wire
   type Trgt
     
   def wire2Trgt( wire : Wire ) : Trgt
+  def trgt2Wire( trgt : Trgt ) : Wire  
+}
+
+trait MonadicWireToTrgtConversion 
+{
+  self : MonadicGenerators
+       with WireToTrgtConversion with WireTap with Journalist =>
 
   def xformAndDispatch(
     msgGenerator : Generator[Wire,Unit,Unit]
@@ -145,6 +234,13 @@ with FJTaskRunners {
     port : Int
   ) : Generator[T,Unit,Unit]
 
+  def serve [T] (
+    factory : ConnectionFactory,
+    host : String,
+    port : Int,
+    exchange : String
+  ) : Generator[T,Unit,Unit]
+
   def callbacks(
     channel : Channel
   ) : Generator[Payload,Unit,Unit]
@@ -153,6 +249,17 @@ with FJTaskRunners {
     channel : Channel
   ) : Generator[T,Unit,Unit]
 
+  def read [T] (
+    channel : Channel,
+    exchange : String
+  ) : Generator[T,Unit,Unit]
+
 }
 
+
+trait MonadicDispatcherScope[T] {
+  type MDS[A] <: MonadicDispatcher[A]
+  val theMDS = protoMDS[T]
+  def protoMDS[A] : MDS[A]
+}
 

@@ -5,27 +5,26 @@ import scala.xml._
 /* User: jklassen
 */
 
-trait Persist
+trait Persist[OpenReturn]
 {
   def checkIfDBExists(collectionName: String, leaveOpen: Boolean): Boolean
 
-  def open(collectionName: String, retries: Int, wait: Int) : Any
+  def open(collectionName: String, retries: Int, wait: Int) : OpenReturn
 
-  def drop(collectionName: String)
+  def drop(collectionName: String) : Unit
 
-  //is read necessary? is it really read by query instead of by key?
-  def read(collectionName: String, key: String)
+  def insertUpdate(collectionName: String, key: String, value: String) : Unit
 
-  def insertUpdate(collectionName: String, key: String, value: String)
-
-  def delete(collectionName: String, key: String)
-
+  def delete(collectionName: String, key: String) : Unit
 
   def execute(query: String): Unit
 
   def execute(queries: List[String]): Unit
 
   def executeScalar(query: String): String
+
+  // BUGBUG -- lgm: this implies that Elem is our in-memory
+  // representation for return values. Should this decision be revisited?
 
   def executeWithResults(query: String): List[Elem]
 

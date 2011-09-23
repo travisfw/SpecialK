@@ -30,7 +30,6 @@ object ApplicationDefaults {
   // Storage conversion mechanism
   val valueStorageType : String = "CnxnCtxtLabel"
   // Logging
-  val loggingLevel : String = "Tweet"
   // File system configuration
   implicit val tmpDirStr = "tmp"
 }
@@ -54,5 +53,4 @@ object BaseXDefaults {
     "CollectionManagementService"
   val managementServiceVersion : String = "1.0"  
   val valueStorageType : String = "CnxnCtxtLabel"
-  val loggingLevel : String = "Tweet"
 }

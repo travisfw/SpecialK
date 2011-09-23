@@ -401,7 +401,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	// BUGBUG -- LGM need to return the Solution
 	// Currently the PersistenceManifest has no access to the
 	// unification machinery
-	mTT.RBound( 
+	mTT.RBound(
 	  Some( mTT.Ground( vCCL ) ),
 	  None
 	)
@@ -424,32 +424,32 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
   	  )
         )
     }
-    
+
     override def asCacheValue(
       ltns : String => Namespace,
       ttv : String => Var,
       value : Elem
     ) : Option[Value] = {      
-      tweet(
-	"converting store value to cache value"
+      report(
+	"converting store value to cache value", Severity.Trace
       )
       valueStorageType match {
 	case "CnxnCtxtLabel" => {
-	  tweet(
-	    "using CnxnCtxtLabel method"
+	  report(
+	    "using CnxnCtxtLabel method", Severity.Trace
 	  )
 	  val ttt = ( x : String ) => x
 	  xmlIfier.fromXML( ltns, ttv, ttt )( value ) match {
 	    case Some( CnxnCtxtBranch( ns, k :: v :: Nil ) ) => {
-	      tweet(
-		"Good news! Value has the shape of a record"
+	      report(
+		"Good news! Value has the shape of a record", Severity.Trace
 	      )
 	      if ( kvNameSpace.getOrElse( "" ).equals( ns ) ) {
-		tweet(
-		  "namespace matches : " + ns
+		report(
+		  "namespace matches : " + ns, Severity.Trace
 		)
-		tweet(
-		  "value before conversion is \n" + v
+		report(
+		  "value before conversion is \n" + v, Severity.Trace
 		)
 		for(
 		  vale <-
@@ -459,23 +459,23 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 		) yield { vale }
 	      }
 	      else {
-		tweet(
-		  "namespace mismatch: " + kvNameSpace + "," + ns
+		report(
+		  "namespace mismatch: " + kvNameSpace + "," + ns, Severity.Trace
 		)
 		None
 	      }
 	    }
 	    case _ => {
-	      tweet(
-		"Value failed to embody the shape of a record" + value
+	      report(
+		"Value failed to embody the shape of a record" + value, Severity.Trace
 	      )
 	      None
 	    }
 	  }
 	}
 	case "XStream" => {
-	  tweet(
-	    "using XStream method"
+	  report(
+	    "using XStream method", Severity.Trace
 	  )
 	  xmlIfier.fromXML( ltns, ttv )( value ) match {
 	    case Some( CnxnCtxtBranch( ns, k :: v :: Nil ) ) => {
@@ -514,7 +514,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	  channels( wtr.getOrElse( ptn ) ) = rsrc	  
 	}
 	case Some( pd ) => {
-	  tweet( "accessing db : " + pd.db )
+	  report( "accessing db : " + pd.db, Severity.Debug )
 	  // remove this line to force to db on get
 	  channels( wtr.getOrElse( ptn ) ) = rsrc	  
 	  spawn {
@@ -522,11 +522,12 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	      rcrd <- asStoreRecord( ptn, rsrc );
 	      sus <- collName
 	    ) {
-	      tweet(
+	      report(
 		(
 		  "storing to db : " + pd.db
 		  + " pair : " + rcrd
 		  + " in coll : " + sus
+                  , Severity.Debug
 		)
 	      )
 	      store( sus )( rcrd )
@@ -556,7 +557,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	  waitlist match {
 	    // Yes!
 	    case waiter :: waiters => {
-	      tweet( "found waiters waiting for a value at " + ptn )
+	      report( "found waiters waiting for a value at " + ptn, Severity.Trace )
 	      val itr = waitlist.toList.iterator	    
 	      while( itr.hasNext ) {
 		k( itr.next )
@@ -565,7 +566,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	    // No...
 	    case Nil => {
 	      // Store the rsrc at a representative of the ptn
-	      tweet( "no waiters waiting for a value at " + ptn )
+	      report( "no waiters waiting for a value at " + ptn, Severity.Trace )
 	      //channels( representative( ptn ) ) = rsrc
 	      putInStore(
 		persist, channels, ptn, None, rsrc, collName
@@ -591,7 +592,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	)( channels, registered, ptn, rsrc, collName )
       ) {
 	val PlaceInstance( wtr, Right( rks ), s ) = placeNRKsNSubst
-	tweet( "waiters waiting for a value at " + wtr + " : " + rks )
+	report( "waiters waiting for a value at " + wtr + " : " + rks, Severity.Trace )
 	rks match {
 	  case rk :: rrks => {	
 	    if ( consume ) {
@@ -615,6 +616,198 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
       }
       
     }    
+//
+//    jsk - attempt to keep the mget factored to PersistedMonadicJunction and pass in forward
+//    //method signature from before. provides forward logic as a partially applied function to be compatible with more complex forwards
+//    //the non standard params are bound before passing forward
+//    def mget(
+//      persist : Option[PersistenceManifest],
+//      ask : dAT.Ask,
+//      hops : List[Moniker]
+//    )(
+//      channels : Map[mTT.GetRequest,mTT.Resource],
+//      registered : Map[mTT.GetRequest,List[RK]],
+//      consume : Boolean,
+//      cursor : Boolean,
+//      collName : Option[String]
+//    )(
+//      path : CnxnCtxtLabel[Namespace,Var,Tag]
+//    )
+//    : Generator[Option[mTT.Resource],Unit,Unit] = {
+//        ( mget( persist, forward(ask, hops, _ : CnxnCtxtLabel[Namespace,Var,Tag]))
+//            ( channels, registered, consume, cursor, collName )
+//            ( path ) );
+//    }
+//
+//
+//    def mget(
+//      persist : Option[PersistenceManifest],
+//      forward: ( CnxnCtxtLabel[Namespace,Var,Tag] ) => Unit
+//    )(
+//      channels : Map[mTT.GetRequest,mTT.Resource],
+//      registered : Map[mTT.GetRequest,List[RK]],
+//      consume : Boolean,
+//      cursor : Boolean,
+//      collName : Option[String]
+//    )(
+//      path : CnxnCtxtLabel[Namespace,Var,Tag]
+//    )
+//    : Generator[Option[mTT.Resource],Unit,Unit] = {
+//      Generator {
+//	rk : ( Option[mTT.Resource] => Unit @suspendable ) =>
+//	  shift {
+//	    outerk : ( Unit => Unit ) =>
+//	      reset {
+//		for(
+//		  oV <- mget( channels, registered, consume )( path )
+//		) {
+//		  oV match {
+//		    case None => {
+//		      persist match {
+//			case None => {
+//			  tweet( ">>>>> forwarding..." )
+//			  forward(path)
+//			  rk( oV )
+//			}
+//			case Some( pd ) => {
+//			  tweet(
+//			    "accessing db : " + pd.db
+//			  )
+//
+//			  val xmlCollName =
+//			    collName.getOrElse(
+//			      storeUnitStr.getOrElse(
+//				bail()
+//			      )
+//			    )
+//
+//			  // Defensively check that db is actually available
+//
+//			  checkIfDBExists( xmlCollName, true ) match {
+//			    case true => {
+//			      val oQry = query( xmlCollName, path )
+//
+//			      oQry match {
+//				case None => {
+//				  tweet( ">>>>> forwarding..." )
+//				  forward(path)
+//				  rk( oV )
+//				}
+//				case Some( qry ) => {
+//                                  tweet(
+//                                    (
+//                                      "querying db : " + pd.db
+//                                      + " from coll " + xmlCollName
+//                                      + " where " + qry
+//                                    )
+//				  )
+//
+//				  val rslts = executeWithResults( qry )
+//
+//				  rslts match {
+//				    case Nil => {
+//				      tweet(
+//					(
+//					  "database "
+//					  + xmlCollName
+//					  + " had no matching resources."
+//					)
+//				      )
+//				      forward(path)
+//				      rk( oV )
+//				    }
+//				    case _ => {
+//				      tweet(
+//					(
+//					  "database "
+//					  + xmlCollName
+//					  + " had "
+//					  + rslts.length
+//					  + " matching resources."
+//					)
+//				      )
+//
+//                                      if ( cursor )
+//                                      {
+//                                        var rsrcRslts : List[mTT.Resource] = Nil
+//                                        for( rslt <- itergen[Elem]( rslts ) ) {
+//                                          tweet( "retrieved " + rslt.toString )
+//
+//                                          if ( consume ) {
+//                                            tweet( "removing from store " + rslt )
+//                                            removeFromStore(
+//                                              persist,
+//                                              rslt,
+//                                              collName
+//                                            )
+//                                          }
+//
+//                                          // BUGBUG -- LGM : This is a
+//                                          // window of possible
+//                                          // failure; if we crash here,
+//                                          // then the result is out of
+//                                          // the store, but we haven't
+//                                          // completed processing. This is
+//                                          // where we need Tx.
+//                                          val ersrc : Option[mTT.Resource] = asResource( path, rslt )
+//                                          ersrc match {
+//                                            case Some(r) => rsrcRslts = r :: rsrcRslts
+//                                            case _ => {}
+//                                          }
+//
+//                                        }
+//
+//                                        val rsrcCursor = asCursor( rsrcRslts )
+//                                        //report( "returning cursor" + rsrcCursor )
+//                                        rk( rsrcCursor )
+//                                      }
+//                                      else
+//                                      {
+//                                        for( rslt <- itergen[Elem]( rslts ) ) {
+//                                          tweet( "retrieved " + rslt.toString )
+//                                          val ersrc = asResource( path, rslt )
+//
+//                                          if ( consume ) {
+//                                            tweet( "removing from store " + rslt )
+//                                            removeFromStore(
+//                                              persist,
+//                                              rslt,
+//                                              collName
+//                                            )
+//                                          }
+//
+//                                          // BUGBUG -- LGM : This is a
+//                                          // window of possible
+//                                          // failure; if we crash here,
+//                                          // then the result is out of
+//                                          // the store, but we haven't
+//                                          // completed processing. This is
+//                                          // where we need Tx.
+//                                          tweet( "returning " + ersrc )
+//                                          rk( ersrc )
+//                                        }
+//                                      }
+//				    }
+//				  }
+//				}
+//			      }
+//			    }
+//			    case false => {
+//			      tweet( ">>>>> forwarding..." )
+//			      forward(path)
+//			      rk( oV )
+//			    }
+//			  }
+//			}
+//		      }
+//		    }
+//		    case _ => rk( oV )
+//		  }
+//		}
+//	      }
+//	  }
+//      }
+//    }
     
     def mget(
       persist : Option[PersistenceManifest],
@@ -630,25 +823,25 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      Generator {	
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+      Generator {
 	rk : ( Option[mTT.Resource] => Unit @suspendable ) =>
 	  shift {
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path ) 
+		  oV <- mget( channels, registered, consume )( path )
 		) {
 		  oV match {
 		    case None => {
 		      persist match {
 			case None => {
-			  tweet( ">>>>> forwarding..." )
+			  report( ">>>>> forwarding..." )
 			  forward( ask, hops, path )
 			  rk( oV )
 			}
 			case Some( pd ) => {
-			  tweet(
+			  report(
 			    "accessing db : " + pd.db
 			  )
 
@@ -667,14 +860,15 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 			  
 			      oQry match {
 				case None => {
-				  tweet( ">>>>> forwarding..." )
+				  report( ">>>>> forwarding..." )
 				  forward( ask, hops, path )
 				  rk( oV )
 				}
-				case Some( qry ) => {	
-				  tweet(
+				case Some( qry ) => {
+				  report(
 				    (
 				      "retrieval query : \n" + qry
+                                      , Severity.Trace
 				    )
 				  )
 				
@@ -682,7 +876,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 				
 				  rslts match {
 				    case Nil => {	
-				      tweet(
+				      report(
 					(
 					  "database "
 					  + xmlCollName
@@ -693,7 +887,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 				      rk( oV )
 				    }
 				    case _ => { 			  
-				      tweet(
+				      report(
 					(
 					  "database "
 					  + xmlCollName
@@ -703,7 +897,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 					)
 				      )		  				  
 				  
-				      if ( cursor )
+                                      if ( cursor )
                                       {
                                         var rsrcRslts : List[mTT.Resource] = Nil
                                         for( rslt <- itergen[Elem]( rslts ) ) {
@@ -734,42 +928,42 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
                                         }
 
                                         val rsrcCursor = asCursor( rsrcRslts )
-                                        //tweet( "returning cursor" + rsrcCursor )
+                                        //report( "returning cursor" + rsrcCursor )
                                         rk( rsrcCursor )
                                       }
                                       else
                                       {
-					for( rslt <- itergen[Elem]( rslts ) ) {
-					  tweet( "retrieved " + rslt.toString )
-					  val ersrc = asResource( path, rslt )
-					  
-					  if ( consume ) {
-					    tweet( "removing from store " + rslt )
-					    removeFromStore( 
-					      persist,
-					      rslt,
-					      collName
-					    )
-					  }
-					  
-					  // BUGBUG -- LGM : This is a
-					  // window of possible
-					  // failure; if we crash here,
-					  // then the result is out of
-					  // the store, but we haven't
-					  // completed processing. This is
-					  // where we need Tx.
-					  tweet( "returning " + ersrc )
-					  rk( ersrc )
-					}
-				      }
+                                        for( rslt <- itergen[Elem]( rslts ) ) {
+                                          tweet( "retrieved " + rslt.toString )
+                                          val ersrc = asResource( path, rslt )
+
+                                          if ( consume ) {
+					  report( "removing from store " + rslt, Severity.Trace )
+                                            removeFromStore(
+                                              persist,
+                                              rslt,
+                                              collName
+                                            )
+                                          }
+
+                                          // BUGBUG -- LGM : This is a
+                                          // window of possible
+                                          // failure; if we crash here,
+                                          // then the result is out of
+                                          // the store, but we haven't
+                                          // completed processing. This is
+                                          // where we need Tx.
+					report( "returning " + ersrc )
+                                          rk( ersrc )
+                                        }
+                                      }
 				    }
 				  }
-				}			    
-			      }			      
+				}
+			      }
 			    }
 			    case false => {
-			      tweet( ">>>>> forwarding..." )
+			      report( ">>>>> forwarding..." )
 			      forward( ask, hops, path )
 			      rk( oV )
 			    }
@@ -792,7 +986,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
     ) : Unit = {
       for( pd <- persist; clNm <- collName )
 	{
-	  tweet( "removing from db : " + pd.db )
+	  report( "removing from db : " + pd.db, Severity.Trace )
 	  val rcrdKey =
 	    record match {
 	      case <record>{ kv @_* }</record> => {
@@ -833,11 +1027,11 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 	      "%COLLNAME%",
 	      clNm
 	    )
-	  tweet( "deletion query : \n" + deletionQry )
+	  report( "deletion query : \n" + deletionQry, Severity.Trace )
 	  val ostrm = new java.io.ByteArrayOutputStream()
 	  execute( List( deletionQry ) )
-	  tweet(
-	    "deletion results: \n" + ostrm.toString
+	  report(
+	    "deletion results: \n" + ostrm.toString, Severity.Trace
 	  )
 	}
     }
@@ -870,7 +1064,9 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
     }
 
     //override def get( hops : List[URI] )(
-    override def get( hops : List[Moniker] )(
+    override def get(
+      hops : List[Moniker]
+      )(
       cursor: Boolean
       )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
@@ -898,7 +1094,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      get( Nil )( false )( path )    
+      get( Nil )( false )( path )
     }
 
     //override def fetch( hops : List[URI] )(
@@ -930,7 +1126,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      fetch( Nil )( false )( path )    
+      fetch( Nil )( false )( path )
     }
 
     //override def subscribe( hops : List[URI] )(
@@ -1182,8 +1378,8 @@ object StdPersistedMonadicTS
 	  ttv : String => Symbol,
 	  value : Elem
 	) : Option[String] = {
-	  tweet(
-	    "Shouldn't be here!"
+	  report(
+	    "Shouldn't be here!", Severity.Error
 	  )
 	  None
 	}
@@ -1193,8 +1389,9 @@ object StdPersistedMonadicTS
 	) : CnxnCtxtLeaf[Symbol,Symbol,String] with Factual = {
 	  valueStorageType match {
 	    case "CnxnCtxtLabel" => {
-	      tweet(
+	      report(
 		"warning: CnxnCtxtLabel method is using XStream"
+                , Severity.Trace
 	      )
 
 	      val blob = toXQSafeJSONBlob( rsrc )
@@ -1206,8 +1403,9 @@ object StdPersistedMonadicTS
 	      )
 	    }
 	    case "XStream" => {
-	      tweet(
+	      report(
 		"using XStream method"
+                , Severity.Trace
 	      )
 	      val blob = toXQSafeJSONBlob( rsrc )
 	      //asXML( rsrc )
@@ -1224,8 +1422,9 @@ object StdPersistedMonadicTS
 	def asCacheValue(
 	  ccl : CnxnCtxtLabel[Symbol,Symbol,String]
 	) : String = {
-	  tweet(
+	  report(
 	    "converting to cache value"
+            , Severity.Trace
 	  )
 	  //asPatternString( ccl )
 	  ccl match {

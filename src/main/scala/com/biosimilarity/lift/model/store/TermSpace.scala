@@ -48,11 +48,9 @@ extends HashMap[
 ]
 
 trait TermSpace[Namespace,Var,Tag,Value]
-extends TermTypes[Namespace,Var,Tag,Value] {
-  self : CnxnCtxtInjector[Namespace,Var,Tag] with Journalist with WireTap =>
+extends TermTypes[Namespace,Var,Tag,Value] with Reporting {
+  self : CnxnCtxtInjector[Namespace,Var,Tag] =>
 
-  // val reportage = report( Twitterer() ) _
-  
   def get(
     path : CnxnCtxtLabel[Namespace,Var,Tag],
     next : WhatNext,
@@ -94,7 +92,7 @@ extends TermTypes[Namespace,Var,Tag,Value] {
   def get(
     path : CnxnCtxtLabel[Namespace,Var,Tag]
   ) : Seq[Option[Resource]] = {
-    get( path, ( v : Option[Resource] ) => { tap( v ); v } )
+    get( path, ( v : Option[Resource] ) => { report( v ); v } )
   }
   def get(
     path : CnxnLabel[Namespace,Tag]
@@ -105,7 +103,7 @@ extends TermTypes[Namespace,Var,Tag,Value] {
   def fetch(
     path : CnxnCtxtLabel[Namespace,Var,Tag]
   ) : Seq[Option[Resource]] = {
-    fetch( path, ( v : Option[Resource] ) => { tap( v ); v } )
+    fetch( path, ( v : Option[Resource] ) => { report( v ); v } )
   }
   def fetch(
     path : CnxnLabel[Namespace,Tag]
@@ -150,7 +148,6 @@ class TermStore[Namespace,Var,Tag,Value](
 )
 extends TermSpace[Namespace,Var,Tag,Value] 
 with BaseXCnxnStorage[Namespace,Var,Tag]
-//with CnxnStorage[Namespace,Var,Tag]
 with CnxnCtxtInjector[Namespace,Var,Tag]
 with CnxnUnificationCompositeTermQuery[Namespace,Var,Tag]
 with CnxnConversions[Namespace,Var,Tag]
@@ -158,19 +155,11 @@ with CnxnXML[Namespace,Var,Tag]
 //with XMLStore
 with BaseXXMLStore
 with Blobify
-with WireTap
-with Journalist
-with ConfiggyReporting
-//with ConfiggyJournal
-with ConfiguredJournal
+with Reporting
 with ConfigurationTrampoline
 with UUIDOps {
   lazy val _labelMap = new TMap[Namespace,Var,Tag,Value]()
   lazy val _waiters = new HashMap[GetRequest,List[GetContinuation]]()  
-
-  override def tap [A] ( fact : A ) : Unit = {
-    reportage( fact )
-  }
 
   override def configurationDefaults : ConfigurationDefaults = {
     ApplicationDefaults.asInstanceOf[ConfigurationDefaults]
@@ -230,11 +219,12 @@ with UUIDOps {
 		  k( None )
 		}	    	      
 	      }
-	    reportage(
+	    report(
 	      (
 		this
 		+ "resuming with value : "
 		+ rslt
+                , Severity.Trace
 	      )
 	    )
 	    if ( !peek ) {
@@ -270,11 +260,12 @@ with UUIDOps {
 		_waiters.get( place ).getOrElse( Nil ) ++ List( k )
 	    }	    	      
 	  }
-	reportage(
+	report(
 	  ( 
 	    this
 	    + "resuming with value : "
 	    + rslt
+            , Severity.Trace
 	  )
 	)
 	_labelMap -= place

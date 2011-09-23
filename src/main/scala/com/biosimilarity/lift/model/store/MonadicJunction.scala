@@ -16,7 +16,6 @@ import com.biosimilarity.lift.lib.moniker._
 import net.liftweb.amqp._
 
 import scala.util.continuations._ 
-import scala.concurrent.{Channel => Chan, _}
 import scala.concurrent.cpsops._
 import scala.collection.mutable.Map
 import scala.collection.mutable.HashMap
@@ -37,6 +36,7 @@ import java.util.UUID
 import java.net.URI
 import java.io.ByteArrayOutputStream
 import java.io.ObjectOutputStream
+import scala.concurrent.{FJTaskRunners, Channel => Chan}
 
 trait MonadicDTSMsgScope[Namespace,Var,Tag,Value]
 extends DTSMsgScope[Namespace,Var,Tag,Value]
@@ -70,11 +70,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
   with SemiMonadicJSONAMQPTwistedPair[Msgs.JTSReqOrRsp] {
     self : MonadicWireToTrgtConversion
       with MonadicGenerators
-      with WireTap
-      with Journalist
-      with ConfiggyReporting
-      //with ConfiggyJournal
-      with ConfiguredJournal
+      with Reporting
       with ConfigurationTrampoline =>
       
     override type Trgt = Msgs.JTSReqOrRsp    
@@ -99,7 +95,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	  val jd =
 	    new StdMonadicAgentJSONAMQPDispatcher[Msgs.JTSReqOrRsp](
 	      srcURI.getHost,
-	      getPort(srcURI.getPort, defaultPort),
+              getPort(srcURI.getPort, defaultPort),
 	      new ListBuffer[Msgs.JTSReq](),
 	      new ListBuffer[Msgs.JTSRsp](),
 	      //Some( new LinkedHashMap[URI,Socialite[Msgs.DReq,Msgs.DRsp]]() ),
@@ -135,18 +131,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
     override val trgtURI : Moniker
   ) extends SemiMonadicAgentJSONAMQPTwistedPair[String] 
   with MonadicJSONAMQPDispatcher[Msgs.JTSReqOrRsp]
-  with MonadicWireToTrgtConversion with MonadicGenerators with WireTap
-  with Journalist
-  with ConfiggyReporting
-  //with ConfiggyJournal
-  with ConfiguredJournal
+  with MonadicWireToTrgtConversion with MonadicGenerators
+  with Reporting
   with ConfigurationTrampoline
   with UUIDOps {
       override type Wire = String
       override type Trgt = Msgs.JTSReqOrRsp
-      override def tap [A] ( fact : A ) : Unit = {
-	reportage( fact )
-      }
 
     override def configFileName : Option[String] = None
     override def configurationDefaults : ConfigurationDefaults = {
@@ -187,7 +177,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
     }
 
     def send( dreq : Msgs.DReq ) : Unit = {
-      tweet(
+      report(
 	(
 	  this
 	  + " is sending : "
@@ -211,7 +201,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
     }
 
     def send( drsp : Msgs.DRsp ) : Unit = {
-      tweet(
+      report(
 	(
 	  this
 	  + " is sending : "
@@ -236,7 +226,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
   }
 
   object SMAJATwistedPair {
-    def apply (
+     def apply (
       srcURI : Moniker, trgtURI : Moniker
     ) : SMAJATwistedPair = {
       new SMAJATwistedPair(
@@ -264,11 +254,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
   extends MonadicAgency[String,Msgs.DReq,Msgs.DRsp] {
     self : MonadicWireToTrgtConversion
 	with MonadicGenerators
-	with WireTap
-	with Journalist
-	with ConfiggyReporting
-  //with ConfiggyJournal
-	with ConfiguredJournal
+	with Reporting
 	with ConfigurationTrampoline =>
     
     def agentTwistedPairs :
@@ -282,21 +268,20 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
     //def acqQName( acqURI : URI ) : String
     def acqQName( acqURI : Moniker ) : String
 
-    override def setLoggingLevel( verb : Verbosity ) : Unit = {
-      _loggingLevel = Some( verb )
-      for( ( uri, acquaintance ) <- agentTwistedPairs ) {
-	acquaintance match {
-	  case sma : SMAJATwistedPair => {
-	    sma.setLoggingLevel( verb )
-	  }
-	}
-      }
-    }
-    
-    //def meetNGreet( acquaintances : Seq[URI] )
+    //todo:implement setLoggingLevel
+//    override def setLoggingLevel( verb : Verbosity ) : Unit = {
+//      _loggingLevel = Some( verb )
+//      for( ( uri, acquaintance ) <- agentTwistedPairs ) {
+//	acquaintance match {
+//	  case sma : SMAJATwistedPair => {
+//	    sma.setLoggingLevel( verb )
+//	  }
+//	}
+//      }
+//    }
+//
     def meetNGreet( acquaintances : Seq[Moniker] )
-    : //Map[URI,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
-    Map[Moniker,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
+    : Map[Moniker,SemiMonadicAgentJSONAMQPTwistedPair[String]] =
       {
 	//val map = new HashMap[URI,SemiMonadicAgentJSONAMQPTwistedPair[String]]()
 	val map = new HashMap[Moniker,SemiMonadicAgentJSONAMQPTwistedPair[String]]()
@@ -365,7 +350,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
   with QueueNameVender
   //with WireTap
   //with Journalist
-  //with ConfiggyReporting
+  //with Reporting
   //with ConfiguredJournal
   //with ConfigurationTrampoline
   {
@@ -382,7 +367,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	( uri, jsndr ) <- agentTwistedPairs
 	if !hops.contains( uri )
       ) {
-	tweet(
+	report(
 	  (
 	    this
 	    + " forwarding to "
@@ -420,11 +405,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	  ) => {
 	    body match {
 	      case dgreq@Msgs.MDGetRequest( path ) => {
-		tweet(
+		report(
 		  (
 		    this 
 		    + "handling : "
 		    + dgreq
+                    , Severity.Trace
 		  )
 		)
 
@@ -439,13 +425,14 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			val smajatp : SMAJATwistedPair =
 			  atp.asInstanceOf[SMAJATwistedPair]
 
-			tweet(
+			report(
 			  (
 			    this 
 			    + " returning from local get for location : "
 			    + path
 			    + "\nwith value : " 
 			    + v
+                            , Severity.Trace
 			  )
 			)
 
@@ -456,12 +443,13 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			    Some( Ground( gv ) ),
 			    Some( soln ) 
 			  ) => {
-			    tweet(
+			    report(
 			      (
 				this 
 				+ " sending value "
 				+ v
 				+ " back "
+                                , Severity.Trace
 			      )
 			    )
 
@@ -476,12 +464,13 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			    Some( Ground( gv ) ),
 			    None 
 			  ) => {
-			    tweet(
+			    report(
 			      (
 				this 
 				+ " sending value "
 				+ v
 				+ " back "
+                                , Severity.Trace
 			      )
 			    )
 
@@ -493,12 +482,13 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			    )
 			  }
 			  case Ground( gv ) => {
-			    tweet(
+			    report(
 			      (
 				this 
 				+ " sending value "
 				+ v
 				+ " back "
+                                , Severity.Trace
 			      )
 			    )
 
@@ -510,12 +500,13 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			    )
 			  }
 			  case _ => {
-			    tweet(
+			    report(
 			      (
 				this 
 				+ " not sending composite value "
 				+ v
 				+ " back "
+                                , Severity.Trace
 			      )
 			    )
 			  }
@@ -524,7 +515,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		      v
 		    }
 		  }
-		tweet(
+		report(
 		  (
 		    this 
 		    + "calling get locally for location : "
@@ -534,11 +525,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		get( List( msrc ) )( path, k )
 	      }
 	      case dfreq@Msgs.MDFetchRequest( path ) => {
-		tweet(
+		report(
 		  (
 		    this 
 		    + "handling : "
 		    + dfreq
+                    , Severity.Trace
 		  )
 		)
 		val k =
@@ -568,11 +560,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		fetch( path, k )
 	      }
 	      case dpreq@Msgs.MDPutRequest( path, value ) => {	
-		tweet(
+		report(
 		  (
 		    this
 		    + " handling : "
 		    + dpreq
+                    , Severity.Trace
 		  )
 		)
 		put( path, value )
@@ -597,11 +590,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	    case dput : Msgs.MDPutResponse[Namespace,Var,Tag,Value] => {	
 	    }
 	    case _ => {
-	      tweet(
+	      report(
 		(
 		  this 
 		  + " handling unexpected message : "
 		  + body
+                  , Severity.Error
 		)
 	      )
 	    }
@@ -617,7 +611,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	    msgId, mtrgt, msrc, lbl, body, _
 	  )
 	) => {
-	  tweet(
+	  report(
 	    (
 	      this
 	      + " handling : "
@@ -626,6 +620,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	      + msrc
 	      + " on behalf of "
 	      + mtrgt
+              , Severity.Trace
 	    )
 	  )
 	  handleRequest( dreq )
@@ -635,7 +630,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	    msgId, mtrgt, msrc, lbl, body, _
 	  )
 	) => {
-	  tweet(
+	  report(
 	    (
 	      this
 	      + " handling : "
@@ -644,6 +639,7 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	      + msrc
 	      + " on behalf of "
 	      + mtrgt
+              , Severity.Trace
 	    )
 	  )
 	  handleResponse( drsp )
@@ -670,21 +666,23 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 	      val rslt : Option[Resource] = 
 		shift {
 		  ( k : GetContinuation ) => {	      
-		    tweet(
+		    report(
 		      (
 			this
 			+ " storing continuation to wait for value : "
 			+ k
+                        , Severity.Trace
 		      )
 		    )
 		    _waiters( place ) =
 		      _waiters.get( place )
 		    .getOrElse( Nil ) ++ List( k )
 		    
-		    tweet(
+		    report(
 		      (
 			this 
 			+ " forwarding to acquaintances "
+                        , Severity.Debug
 		      )
 		    )
 
@@ -693,11 +691,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		    k( None )
 		  }	    	      
 		}
-	      tweet(
+	      report(
 		(
 		  this
 		  + " resuming with value : "
 		  + rslt
+                  , Severity.Trace
 		)
 	      )
 	      rslt match {
@@ -798,12 +797,13 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		      val rslt : Option[Resource] =
 			shift {
 			  ( wk : GetContinuation ) => {		  
-			    tweet(
+			    report(
 			      (
 				this
 				+ " storing continuation "
 				+ wk + " to wait for values "
 				+ asks
+                                , Severity.Trace
 			      )
 			    )
 			    
@@ -825,11 +825,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 			  }		  		  
 			}
 		      
-		      tweet(
+		      report(
 			(
 			  this
 			  + " resuming with value : "
 			  + rslt
+                          , Severity.Trace
 			)
 		      )
 		      
@@ -850,12 +851,12 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 		      }
 		    }
 
-		  tweet( "join resuming with result: " + oRsrc )
+		  report( "join resuming with result: " + oRsrc , Severity.Trace )
 
 		  k( oRsrc )
 		}
 
-		tweet( "join returning" )
+		report( "join returning", Severity.Trace )
 		outerK()
 	      }
 	  }
@@ -867,8 +868,9 @@ extends DTSMsgScope[Namespace,Var,Tag,Value]
 				  // implies adding flatMap to Generator
     ) = Generator {
       k : ( Option[Resource] => Unit @suspendable ) =>
-	tweet(
+	report(
 	  "Agent is serving now... "
+          , Severity.Trace
 	)
       val locations =
 	placePatterns.flatMap(

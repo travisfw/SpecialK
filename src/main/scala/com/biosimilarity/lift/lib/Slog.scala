@@ -9,12 +9,6 @@
 package com.biosimilarity.lift.lib
 
 import net.lag.configgy._
-import net.lag.logging._
-
-import scala.xml._
-import java.util.UUID
-
-import net.lag.configgy._
 
 import org.apache.log4j.{PropertyConfigurator, Level, Logger}
 
@@ -24,69 +18,9 @@ object Severity extends Enumeration()
   val Fatal, Error, Warning, Info, Debug, Trace = Value
 }
 
-trait WireTap {
-  def tap [A] ( fact : A ) : Unit
-}
-
-
-object JournalIDVender extends UUIDOps
-
-trait Verbosity {
-    def id : UUID
-  }
-class Luddite(
-  override val id : UUID
-) extends Verbosity
-class Blogger(
-  override val id : UUID
-) extends Luddite( id )
-class Twitterer(
-  override val id : UUID
-) extends Blogger( id )
-
-object Twitterer {
-  def apply(
-    id : UUID
-  ) : Twitterer = new Twitterer( id )
-  def unapply( t : Twitterer ) : Option[(UUID)] =
-    Some( (t.id) )
-}
-
-object Blogger {
-  def apply(
-    id : UUID
-  ) : Blogger = new Blogger( id )
-  def unapply( t : Blogger ) : Option[(UUID)] =
-    Some( (t.id) )
-}
-
-object Luddite {
-  def apply(
-    id : UUID
-  ) : Luddite = new Luddite( id )
-  def unapply( t : Luddite ) : Option[(UUID)] =
-    Some( (t.id) )
-}
-
-case object TheTwitterer
-extends Twitterer(
-  JournalIDVender.getUUID
-)
-case object TheBlogger
-extends Blogger(
-  JournalIDVender.getUUID
-)
-case object TheLuddite
-extends Luddite(
-  JournalIDVender.getUUID
-)
-  
-
-// This design is now officially baroque-en! Fix it into simplicity, please!
-trait Journalist {
-
-  object journalIDVender extends UUIDOps
-
+//call monitoring?
+trait Reporting
+{
   def SeverityFromOption(level: Option[ String ]): Severity.Value =
   {
     level match {
@@ -179,33 +113,15 @@ trait Journalist {
     reportLevel.id <= configLevel.id
   }
 
-  var _loggingLevel : Option[Verbosity] = None
-    def setLoggingLevel( verb : Verbosity ) : Unit = {
-      _loggingLevel = Some( verb )
-    }
-
-  def exceptionToTraceStr( e : Exception ) : String = {
-    val sw = new java.io.StringWriter()
-    e.printStackTrace(
-      new java.io.PrintWriter(
-	sw,
-	true
-      )
-    )
-    sw.toString
-  }
-
-  def tweetTrace( e : Exception ) = {
-    reportage(exceptionToTraceStr( e ) )
-  }
-  def reportage[ A ](fact: A): Unit =
+  def report[ A ](fact: A): Unit =
   {
-    tweet(fact, Severity.Debug)
+    report(fact, Severity.Debug)
   }
 
-  def reportage[ A ](fact: A, level: Severity.Value) =
+  def report[ A ](fact: A, level: Severity.Value) =
   {
     tweet(fact, level)
+    blog(fact, level)
   }
 
   def tweet[ A ](fact: A): Unit =
@@ -214,17 +130,6 @@ trait Journalist {
   }
 
   def tweet[ A ](fact: A, level: Severity.Value) =
-  {
-    display(fact, level)
-    blog(fact, level)
-  }
-
-  def display[ A ](fact: A): Unit =
-  {
-    display(fact, Severity.Debug)
-  }
-
-  def display[ A ](fact: A, level: Severity.Value) =
   {
     if ( enabled(level, tweetLevel) ) {trace(fact, level)}
   }
@@ -287,34 +192,4 @@ trait Journalist {
   //    sw.toString
   //  }
 
-}
-
-trait ConfiggyReporting {
-  self : Journalist =>
-  
-}
-
-trait ConfiggyJournal {
-  self : Journalist with ConfiggyReporting =>
-}
-
-object ConfiguredJournalDefaults {
-}
-
-trait ConfiguredJournal {
-  self : Journalist
-       with ConfiggyReporting
-	with ConfigurationTrampoline =>    
-
-}
-
-abstract class Reporter( val notebook : StringBuffer )
-	 extends Journalist
-
-class ConfiggyReporter(
-  override val notebook : StringBuffer
-) extends Reporter( notebook )
-  with Journalist
-  with ConfiggyReporting	 
-  with ConfiggyJournal {
 }

@@ -291,9 +291,9 @@ extends FJTaskRunners
 	  outerK : ( Unit => Unit ) =>
 	    reset {
 	      for( elem <- strmGenerator ) {
-		//tweet( "calling conversion on elem " + elem )
+		//report( "calling conversion on elem " + elem )
 		val trgtElem = cnvrtr( elem )
-		//tweet( "calling handler on converted elem " + elem )
+		//report( "calling handler on converted elem " + elem )
 		k( trgtElem )
 	      }
 	      
@@ -314,11 +314,6 @@ extends FJTaskRunners
     }
  
 }
-
-package usage {
-/* ------------------------------------------------------------------
- * Mostly self-contained object to support unit testing
- * ------------------------------------------------------------------ */ 
 
 import java.util.regex.{Pattern => RegexPtn, Matcher => RegexMatcher}
 
@@ -357,4 +352,3 @@ object MonadicRegexTSpace
 }
 
 
-}

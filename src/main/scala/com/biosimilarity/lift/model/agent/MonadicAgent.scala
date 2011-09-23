@@ -23,7 +23,7 @@ trait MonadicAgency[TxPort,ReqBody,RspBody]
 	 with Awareness[ReqBody,RspBody]
 	 with Focus[ReqBody,RspBody]
 {
-  self : MonadicWireToTrgtConversion with MonadicGenerators with WireTap with Journalist =>
+  self : MonadicWireToTrgtConversion with MonadicGenerators with Reporting =>
   
   type Wire = TxPort
   type Trgt =
@@ -57,7 +57,7 @@ trait MonadicAgency[TxPort,ReqBody,RspBody]
 		    )
 		  ) => {
 		    if ( validate( jreq ) ) {
-		      reportage( "calling handler on " + jreq )
+		      report( "calling handler on " + jreq, Severity.Trace )
 		      k( l )
 		    }
 		  }
@@ -69,7 +69,7 @@ trait MonadicAgency[TxPort,ReqBody,RspBody]
 		    )
 		  ) => {
 		    if ( validate( jrsp ) ) {
-		      reportage( "calling handler on " + jrsp )
+		      report( "calling handler on " + jrsp, Severity.Trace )
 		      k( r )
 		    }
 		  }
@@ -77,7 +77,7 @@ trait MonadicAgency[TxPort,ReqBody,RspBody]
 
 	      }
 
-	      reportage( "dispatch returning" )
+	      report( "dispatch returning" )
   	      outerK()
 	    }
 	}

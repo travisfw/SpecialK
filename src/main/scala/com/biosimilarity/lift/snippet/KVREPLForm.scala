@@ -18,14 +18,7 @@ import com.biosimilarity.lift.lib._
 import scala.xml._
 
 class KVREPLForm 
-extends WireTap
-with Journalist
-with ConfiggyReporting
-with ConfiggyJournal {
-  override def tap [A] ( fact : A ) : Unit = {
-    reportage( fact )
-  }
-
+extends Reporting {
   val theREPL = new REPL()
   var theTerm : String = "{ }"
   var theClientRequestStr : String = evalStr()
@@ -63,7 +56,7 @@ with ConfiggyJournal {
     try {
       theParseResponseStr =
 	theREPL.showClientRequestParseTree(theClientRequestStr)
-      reportage( "parsed : " + theParseResponseStr );
+      report( "parsed : " + theParseResponseStr );
 	//theREPL.readEvalPrint(theClientRequestStr)
     }
     catch {
@@ -77,12 +70,12 @@ with ConfiggyJournal {
   }
 
   def updateWhat(str: String): JsCmd = {
-    reportage("updateWhat with " + str)
+    report("updateWhat with " + str)
     JsCmds.SetHtml("parseTree", whatNode(str))
   }
 
   def show(xhtml: NodeSeq): NodeSeq = {
-    reportage( "entering show with " + xhtml.toString )
+    report( "entering show with " + xhtml.toString )
     bind(
       "json", xhtml,
       "script" -> Script( json.jsCmd ),

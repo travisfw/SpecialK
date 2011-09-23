@@ -18,7 +18,7 @@ import scala.collection.mutable.HashMap
 trait TupleSpace[Place,Resource]
 //       extends MapLike[Place,Resource, This]
 {
-  self : WireTap with Journalist =>
+  self : Reporting =>
 
   type RK = Option[Resource] => Option[Resource]
   type CK = Option[Resource] => Option[Resource]
@@ -28,7 +28,7 @@ trait TupleSpace[Place,Resource]
 
   //def self = theMeetingPlace
 
-  // val reportage = report( Luddite() ) _
+  // val blog = report( Luddite() ) _
 
   def fetch( x : Place ) 
   : Option[Resource] @scala.util.continuations.cpsParam[Option[Resource],Unit]
@@ -45,10 +45,11 @@ trait TupleSpace[Place,Resource]
       }
       case None => {	
 	//reset {
-	reportage(
+	report(
 	  (
 	    this 
 	    + " acquiring continuation to wait for a value "
+            , Severity.Trace
 	  )
 	)
 	val cv =
@@ -60,11 +61,12 @@ trait TupleSpace[Place,Resource]
 	      //k( None )
 	    }
 	  }
-	reportage(
+	report(
 	  (
 	    this
 	    + " resuming with value : "
 	    + cv
+            , Severity.Trace
 	  )
 	)
 	theMeetingPlace -= x
@@ -80,10 +82,11 @@ trait TupleSpace[Place,Resource]
 	case sv @ Some( v ) => sv
 	case None => {	
 	  reset {
-	    reportage(
+	    report(
 	      (
 		this
 		+ " acquiring continuation to wait for a value "
+                , Severity.Trace
 	      )
 	    )
 	    val cv =
@@ -95,10 +98,11 @@ trait TupleSpace[Place,Resource]
 		  k( None )
 		}
 	      }
-	    reportage(
+	    report(
 	      (
 		this 
 		+ " resuming with value : " + cv
+                , Severity.Trace
 	      )
 	    )
 	    cv
@@ -112,7 +116,7 @@ trait TupleSpace[Place,Resource]
   }
 
   def get( x : Place ) : Option[Resource] = {
-    get( x, ( v ) => { tap( v ); v } )
+    get( x, ( v ) => { report( v ); v } )
   }
   
   def put( x : Place, y : Resource ) : Unit = {
@@ -131,16 +135,8 @@ trait TupleSpace[Place,Resource]
 
 object TSpace
        extends TupleSpace[String,String]
-       with WireTap
-       with Journalist
-       with ConfiggyReporting
-       with ConfiggyJournal
+       with Reporting
 {
   override val theMeetingPlace = new HashMap[String,String]()
   override val theWaiters = new HashMap[String,List[RK]]()
-
-  override def tap [A] ( fact : A ) : Unit = {
-    reportage( fact )
-  }
-  
 }

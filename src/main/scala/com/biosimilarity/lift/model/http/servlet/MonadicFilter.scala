@@ -35,8 +35,8 @@ import javax.servlet.http.HttpServletResponse
 
 class MonadicFilter
 extends Filter
-with Journalist
 with UUIDOps
+with Reporting
 with FJTaskRunners
 {
   import MonadicHttpTS._
@@ -118,7 +118,7 @@ with FJTaskRunners
 			) => {
 			  // this waits for the response
 			  for( rsrc <- mySpace.getValue( rplyLoc ) ) {
-			    tweet( "should serve up: " + rsrc )
+			    report( "should serve up: " + rsrc )
 			    val response = hctxt.resp		    
 			    response.setContentType("text/html")
 
@@ -130,8 +130,8 @@ with FJTaskRunners
 			    val body =
 			      (/( rsrc ) / ZD / ZR / ZD).tree.toString
 
-			    tweet( "title : " + title )
-			    tweet( "body : " + body )
+			    report( "title : " + title )
+			    report( "body : " + body )
 
 			    pw.println("<html>")
 			    pw.println(
@@ -150,7 +150,7 @@ with FJTaskRunners
 		      }
 		    }
 		    case None => {
-		      tweet(
+		      report(
 			"What to do if there is no reply location?"
 		      );
 		    }
@@ -166,7 +166,7 @@ with FJTaskRunners
 	      //chain.doFilter( req, rsp )
 	    }
 	    case _ => {
-	      tweet(
+	      report(
 		"What are the semantics of other request types?"
 	      )
 	      chain.doFilter( req, rsp )

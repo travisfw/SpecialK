@@ -16,11 +16,6 @@ abstract class AMQPSender[T](cf: ConnectionFactory, host: String, port: Int, exc
   val conn = cf.newConnection( Array { new Address(host, port) } )
   val channel = conn.createChannel()
 
-  /**
-   * Override this to use your own AMQP queue/exchange with the given channel.
-  */
-  def configure(channel: Channel)
-
   def send(msg: T) {
     // Now write an object to a byte array and shove it across the wire.
     val bytes = new ByteArrayOutputStream
@@ -58,11 +53,7 @@ abstract class AMQPSender[T](cf: ConnectionFactory, host: String, port: Int, exc
  * consider creating Actor-based Senders, that will help your application to scale.
  */
 class StringAMQPSender(cf: ConnectionFactory, host: String, port: Int, exchange: String, routingKey: String) extends AMQPSender[String](cf, host, port, exchange, routingKey) {
-  override def configure(channel: Channel) = {
-    //BUGBUG: JSK - is this internal code needed anymore now that ticket is obsolete
-    val conn = cf.newConnection( Array { new Address(host, port) } )
-    val channel = conn.createChannel()
-  }
+
 }
 
 /**

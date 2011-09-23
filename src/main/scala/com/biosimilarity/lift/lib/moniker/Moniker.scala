@@ -61,6 +61,7 @@ class URM(
   val query : Option[String],
   val fragment : Option[String]
 ) extends Moniker {
+
   def this(scheme: String, host: String, path: String, fragment: Option[String]) = this (scheme, None, None, host, None, path, None, fragment)
 
   lazy val uri =

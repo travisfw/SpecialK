@@ -13,21 +13,7 @@ trait Tree[+A]
 case object TZero
 extends Tree[Nothing]
 
-class TreeItem[+A]( val item : A ) extends Tree[A] {
-  override def equals( o : Any ) : Boolean = {
-    o match {
-      case that : TreeItem[A] => {
-	item.equals( that.item )
-      }
-      case _ => {
-	false
-      }
-    }
-  }
-  override def hashCode( ) : Int = {
-    37 * item.hashCode
-  }
-}
+class TreeItem[+A]( val item : A ) extends Tree[A]
 object TreeItem {
   def apply[A]( item : A ) = { new TreeItem( item ) }
   def unapply[A]( tree : TreeItem[A] )
@@ -38,21 +24,7 @@ object TreeItem {
 case class CTreeItem[+A]( val item : A ) extends Tree[A]
 class TreeSection[+A](
   val section: List[Tree[A]]
-) extends Tree[A] {
-  override def equals( o : Any ) : Boolean = {
-    o match {
-      case that : TreeSection[A] => {
-	section.equals( that.section )
-      }
-      case _ => {
-	false
-      }
-    }
-  }
-  override def hashCode( ) : Int = {
-    37 * section.hashCode
-  }
-}
+) extends Tree[A]
 object TreeSection {
   def apply[A]( section : List[Tree[A]] ) = { new TreeSection( section ) }
   def unapply[A]( tree : TreeSection[A] )

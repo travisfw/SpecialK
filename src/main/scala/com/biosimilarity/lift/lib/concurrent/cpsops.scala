@@ -1,6 +1,8 @@
 package scala.concurrent
 
 import scala.util.continuations._
+import concurrent._
+
 //import scala.continuations.ControlContext._
 
 object cpsops {

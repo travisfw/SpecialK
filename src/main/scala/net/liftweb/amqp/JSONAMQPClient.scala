@@ -23,11 +23,6 @@ class JSONAMQPSender(
   exchange: String,
   routingKey: String
 ) extends AMQPSender[String](cf, host, port, exchange, routingKey) {
-  override def configure(channel: Channel) = {
-    //BUGBUG: JSK - is this internal code needed anymore now that ticket is obsolete
-    val conn = cf.newConnection( Array { new Address(host, port) } )
-    val channel = conn.createChannel()
-  }
 }
 
 class BasicJSONAMQPSender {

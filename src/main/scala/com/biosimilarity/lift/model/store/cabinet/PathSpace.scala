@@ -22,14 +22,12 @@ extends HashMap[
 ]
 
 trait PathSpace[Namespace,Tag,Value] {
-  self : Journalist =>
+  self : Reporting =>
   type Resource = Either[PathMap[Namespace,Tag,Value],Value]
   type WhatNext = Option[Resource] => Option[Resource]
   type GetContinuation = Option[Resource] => Option[Resource]
   type GetRequest = CnxnPath[Namespace,Tag]  
   
-  // val reportage = report( Luddite() ) _
-    
   def get(
     path : CnxnPath[Namespace,Tag],
     next : WhatNext
@@ -51,9 +49,7 @@ trait PathSpace[Namespace,Tag,Value] {
 class PathStore[Namespace,Tag,Value](
 )
 extends PathSpace[Namespace,Tag,Value] 
-with Journalist
-with ConfiggyReporting
-with ConfiggyJournal {
+with Reporting {
   lazy val _pathMap = new PathMap[Namespace,Tag,Value]()
   lazy val _pathCache = new HashMap[GetContinuation,Resource]()
   lazy val _waiters = new HashMap[GetRequest,List[GetContinuation]]()  
@@ -71,11 +67,11 @@ with ConfiggyJournal {
 	      ( k : GetContinuation ) => {	      
 		_waiters( path ) =
 		  _waiters.get( path ).getOrElse( Nil ) ++ List( k )
-		reportage( "pivot point" )
+		report( "pivot point" )
 		k( _pathCache.get( k ) )
 	      }	    	      
 	    }
-	  reportage( "pivot back, rslt = " + rslt )
+	  report( "pivot back, rslt = " + rslt )
 	  rslt match {
 	    case Some( v ) => {
 	      next( rslt )

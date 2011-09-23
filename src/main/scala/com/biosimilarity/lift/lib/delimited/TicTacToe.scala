@@ -13,13 +13,11 @@ import com.biosimilarity.lift.lib.monad._
 import scala.collection.immutable.Map
 import scala.collection.immutable.HashMap
 
-abstract class TicTacToe[M1[_]](
-  val n : Int,
-  val m : Int
-) extends SFKTScope[M1] {
+abstract class TicTacToe[M1[_]]( n : Int, m : Int ) extends SFKTScope[M1] {
   trait Mark
   case object X extends Mark
   case object O extends Mark
+
 
   trait Projections[A,B] {
     def _1 : A
@@ -163,15 +161,14 @@ abstract class TicTacToe[M1[_]](
   def showBoard(
     board : Board
   ) : String = {
-    //println( "showing board: " + board )
-    def showRow( i : Int ) : String = {
+    def showRow( i : Int ) : Unit = {
       ( "" /: (0 to n - 1) )(
 	{
 	  ( acc, idx ) => {
 	    acc + (board.get( BoardLocation( i, idx ) ) match {
 	      case Some( X ) => "X"
 	      case Some( O ) => "O"
-	      case _ => "."
+	      case _ => " ."
 	    })
 	  }
 	}
@@ -180,7 +177,7 @@ abstract class TicTacToe[M1[_]](
     ( "" /: (0 to n - 1) )(
       {
 	( acc, idx ) => {
-	  acc + "\n" + showRow( idx )
+	  acc + showRow( idx )
 	}
       }
     )
@@ -240,24 +237,18 @@ abstract class TicTacToe[M1[_]](
 	)
       }
       case _ => {	
-	val playerProcTMSMA = playerProc.tmsma
- 	import playerProcTMSMA._
-	val iga = playerProc.onceC( playerProc.proc( g ) )	  	
-	playerProcTMSMA.bind(
-	  iga, 
-	  {
-	    ( oc : Outcome ) => {
-	      val Outcome( _, ga ) = oc
-	      println( showBoard( ga.board ) )
-	      // BUGBUG -- lgm: This is safe, but ugly!!!
-	      game(
-		otherPlayer,
-		player,
-		ga
-	      ).asInstanceOf[playerProc.TM[Unit]]
-	    }
-	  }
-	)	
+	// val playerProcTMSMA = playerProc.tmsma
+// 	import playerProcTMSMA._
+// 	for(
+// 	  iga <- playerProc.onceC( playerProc.proc( g ) )	  
+// 	)
+// 	  yield {            
+	    val iga = playerProc.onceC( playerProc.proc( g ) )	  
+	    val Outcome( _, ga ) = iga
+	    val gp = ga.asInstanceOf[Game]
+	    println( showBoard( gp.board ) )
+	    game( otherPlayer, player, gp )
+	  //}
       }
     }
   }
@@ -355,131 +346,6 @@ abstract class TicTacToe[M1[_]](
     }    
   }
 
-  trait BetterAI[T[M[_],_],M[_],RTM[A] <: T[M,A]] extends AI[T,M,RTM]
-  {
-    case class MoveNOutcome( m : Loc, oc : Outcome )
-    extends Projections[Loc,Outcome] {
-      override def _1 : Loc = m
-      override def _2 : Outcome = oc
-    }
-
-    def aiLim( dlim : Int )( blim : Int ) : AI[T,M,RTM]
-    def dlim : Int
-    def blim : Int
-
-    def firstMoveWins( p : Mark, g : Game ) : TM[Option[( Loc, Outcome )]] = {
-      monadicTMWitness.bind(
-	choose( g.moves ),
-	( m : Loc ) => {
-	  val gp = takeMove( p, m, g )	  
-	  monadicTMWitness.unit(
-	    for( ( _, pp ) <- gp.winner; if ( pp == p ) ) yield {
-	      ( m, Outcome(scoreWin,gp) )
-	    }
-	  )
-	}	
-      )	
-    }
-    def minmax(
-      dlim : Int,
-      blim : Int,
-      ppSelf : ( Int => Int => AI[T,M,RTM] ),
-      p : Mark,
-      g : Game
-    ) : TM[Outcome] = {      	  
-      val tma : TM[Outcome] =	    
-	monadicTMWitness.bind(
-	  choose( g.moves ),
-	  ( m : Loc ) => {
-	    val gp = takeMove( p, m, g )
-	    if ( dlim <= 0 ) {
-	      monadicTMWitness.unit(
-		Outcome( estimateState( p, gp ), gp )
-	      )
-	    }
-	    else {
-	      val oc =
-		ppSelf( (dlim - 1) )( blim ).opponent(
-		  otherPlayer( p )
-		).proc( gp )
-	    
-	      monadicTMWitness.bind(
-		oc,
-		( oc : Outcome ) => {
-		  monadicTMWitness.unit(
-		    Outcome( -( oc.w ), gp )
-		  )
-		}
-	      )
-	    }	    
-	  }
-	)
-
-      monadicTMWitness.bind(
-	bagOfNC( Some( blim ), tma ),
-	( wbs : List[Outcome] ) => {
-	  monadicTMWitness.unit(
-	    maxByFstProj[Int,Game,Outcome]( wbs.drop( 1 ), wbs( 0 ) )
-	  )
-	}
-      )
-    }
-
-    override def proc( g : Game ) : TM[Outcome] = {
-      g match {
-	case Game( Some( _ ), _, _ ) =>
-	  monadicTMWitness.unit(
-	    Outcome( estimateState( p, g ), g )
-	  )
-	case Game( _, Nil, _ ) =>
-	  monadicTMWitness.unit(
-	    Outcome( estimateState( p, g ), g )
-	  )
-	case _ => {	  	  
-	  ifteC(
-	    onceC( firstMoveWins( p, g ) ),
-	    ( mX : Option[( Loc, Outcome )] ) => {
-	      mX match {
-		case Some( mO ) => {
-		  monadicTMWitness.unit( mO._2 )
-		}
-		case _ =>
-		  throw new Exception( "why are we here?" )
-	      }
-	    },
-	    ifteC(
-	      onceC( firstMoveWins( otherPlayer( p ), g ) ),
-	      ( mX : Option[( Loc, Outcome )] ) => {
-		mX match {
-		  case Some( mO ) => {
-		    val gp = takeMove( p, mO._1, g )
-		
-		    val oc =
-		      aiLim( (dlim - 1) )( blim ).opponent(
-			otherPlayer( p )
-		      ).proc( gp )
-		    
-		    monadicTMWitness.bind(
-		      oc,
-		      ( oc : Outcome ) => {
-			monadicTMWitness.unit(
-			  Outcome( -( oc.w ), gp )
-			)
-		      }
-		    )
-		  }
-		  case _ =>
-		    throw new Exception( "why are we here?" )
-		}				
-	      },
-	      minmax( dlim, blim, aiLim, p, g )
-	    )
-	  )	    	  
-	}
-      }
-    }
-  }
-
   abstract class SFKTAI
   extends LogicTSFKTC[Outcome]
   with AI[SFKT,M1,SFKTC] {    
@@ -506,34 +372,6 @@ abstract class TicTacToe[M1[_]](
 
     // ...this can't be defined until we know more about M.
     override def monadicMWitness : MonadM  
-  }
-}
-
-class TicTacToeL( override val n : Int, override val m : Int )
-	 extends TicTacToe[List]( n, m )
-{
-  override type MonadM = ListM[Outcome]
-  override def monadicMWitness : MonadM = {
-    new ListM[Outcome]()
-  }
-
-  class RSFKTAI( override val p : Mark )
-  extends SFKTAI {
-    override type MonadM = ListM[Outcome]
-    override def opponent( op : Mark ) : AI[SFKT,List,SFKTC] = {
-      new RSFKTAI( op )
-    }
-
-    object aTMSMA
-      extends TMSMA[Outcome] 
-      with MonadicSFKTC
-
-    override def tmsma = aTMSMA
-    override def monadicTMWitness = tmsma
-
-    override def monadicMWitness : MonadM = {
-      new ListM[Outcome]()
-    }
   }
 }
 

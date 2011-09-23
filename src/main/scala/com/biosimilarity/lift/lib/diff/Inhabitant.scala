@@ -19,13 +19,13 @@ trait RegularTypeCheck[Name, NSeq <: NmSeq[Name]] {
     rtype : RegularType[Name, NSeq]
   ) : Boolean = {
     rterm match {
-      case regInj@RegularInjection( tag, s ) => {
+      case RegularInjection( tag, s ) => {
 	rtype match {
 	  case RegularSum( ts, supp ) => {
 	    inhabits(
 	      env,
 	      s,
-	      ts( regInj.inject )
+	      ts( rterm.asInstanceOf[RegularInjection[Name,NSeq]].inject )
 	    )
 	  }
 	  case RegularFPEnv( v, e, s, supp ) => {

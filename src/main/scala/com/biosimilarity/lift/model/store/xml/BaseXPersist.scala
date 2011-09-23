@@ -13,7 +13,7 @@ import org.basex.core.cmd.Add
 import scala.collection._
 import scala.xml._
 
-trait BaseXPersist extends Persist[ClientSession]
+trait BaseXPersist extends Persist
 with XMLStoreConfiguration
 with Schema
 {
@@ -99,7 +99,7 @@ with Schema
     cs
   }
 
-  def drop(collectionName: String) : Unit =
+  def drop(collectionName: String) =
   {
     val cs = clientSessionFromConfig
     try {
@@ -113,8 +113,10 @@ with Schema
     }
   }
 
-  def insertUpdate(collectionName: String, key: String, value: String)
-  : Unit =
+  def read(collectionName: String, key: String) =
+  {}
+
+  def insertUpdate(collectionName: String, key: String, value: String) =
   {
     //race condition on the exists. wrap this in a transaction
 
@@ -257,7 +259,7 @@ with Schema
     }
   }
 
-  def delete(collectionName: String, key: String) : Unit =
+  def delete(collectionName: String, key: String) =
   {
     val recordDeletionQueryTemplate = (
       "delete node "
@@ -275,16 +277,28 @@ with Schema
         "%COLLNAME%",
         collectionName
       )
+    //    report("deletion query : \n" + deletionQry)
+//    if ( exists(collectionName, key) ) {
 
     try {
       val results = executeWithResults(List(deletionQry))
     }
     catch {
-      case e : BaseXException => {
-	// BUGBUG -- lgm : should dump this to log
-        e.printStackTrace()
+      case e: BaseXException => {
+        // this is so the very first call works properly before /database/records node exists
+        //can be removed to the create logic with a trans, create, add, close trans
+
+        //          tweet(
+        //            "deletion query failed " + deletionQry"
+        //          )
+        //          tweetTrace(e)
       }
     }
+//    }
+
+    //    results match {
+    //      case Nil => tweet ("no matching delete")
+    //      case _ => report( "deletion results: \n" + results.toString )
   }
 
   def count(collectionName: String): Int =

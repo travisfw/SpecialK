@@ -61,7 +61,16 @@ object CXQ extends CnxnXQuery[String,String,String]
    .asInstanceOf[CnxnCtxtLabel[String,String,String]]
  }
 
-object BXUtilities {
+object BX extends BaseXXMLStore
+ with Blobify
+ with Reporting
+ with ConfigurationTrampoline
+ with UUIDOps
+{  
+   override def configurationDefaults : ConfigurationDefaults = {
+     ApplicationDefaults.asInstanceOf[ConfigurationDefaults]
+   }
+
   val datasetsDir = "src/main/resources/datasets/"
   val dbNames : List[String] =
     List( "GraphOne", "GraphTwo", "GraphThree", "GraphFour" )
@@ -91,40 +100,22 @@ object BXUtilities {
 
   val outerGraphExpr =
     "Connected( EdgeName( EdgeString( WS ) ), X, Y )"
-  val firstVandG =
-    "VertexSelection( LRBoundVertex( VELabel, V ), G )"
-  val innerGraphExpr = 
-    "VertexSelection( LRB, Connected( EdgeName( EdgeString( WS2 ) ), X1, Y1 ) )"}
-
-trait BaseXXMLUtilities extends BaseXXMLStore
- with Blobify
- with Journalist
- with ConfiggyReporting
- with ConfiguredJournal
- with ConfigurationTrampoline
- with UUIDOps {
-   import BXUtilities._
-   val outerGraphExprCCL =
+  val outerGraphExprCCL =
     CXQ.fromCaseClassInstanceString( outerGraphExpr ).getOrElse( null ).asInstanceOf[CnxnCtxtLabel[String,String,String]]
   val outerGraphExprXQuery =
     CXQ.xqQuery( outerGraphExprCCL )
+  val firstVandG =
+    "VertexSelection( LRBoundVertex( VELabel, V ), G )"
   val firstVandGCCL =
     CXQ.fromCaseClassInstanceString( firstVandG ).getOrElse( null ).asInstanceOf[CnxnCtxtLabel[String,String,String]]
   val firstVandGXQuery =
     CXQ.xqQuery( firstVandGCCL )
+  val innerGraphExpr = 
+    "VertexSelection( LRB, Connected( EdgeName( EdgeString( WS2 ) ), X1, Y1 ) )"
   val innerGraphExprCCL =
     CXQ.fromCaseClassInstanceString( innerGraphExpr ).getOrElse( null ).asInstanceOf[CnxnCtxtLabel[String,String,String]]
   val innerGraphExprXQuery =
     CXQ.xqQuery( innerGraphExprCCL )
- }
-
-object BXToBeDeprecated extends BaseXXMLUtilities
-{ 
-  import BXUtilities._
-
-  override def configurationDefaults : ConfigurationDefaults = {
-    ApplicationDefaults.asInstanceOf[ConfigurationDefaults]
-  }  
     
   def populateDB(
     dbNameStr : String,      // name of the database
@@ -164,7 +155,7 @@ object BXToBeDeprecated extends BaseXXMLUtilities
   }
 
   lazy val dataSets = loadDataSets
-
+  
   def reportGraphs = {
     for( dataSet <- dataSets.take( 3 ) ) {
       val xqSrvc =
@@ -230,15 +221,6 @@ object BXToBeDeprecated extends BaseXXMLUtilities
 	"// *************************************************************\n\n"
       )
     }
-  }  
-}
-
-object BX extends BaseXXMLUtilities
-{ 
-  import BXUtilities._
-
-  override def configurationDefaults : ConfigurationDefaults = {
-    ApplicationDefaults.asInstanceOf[ConfigurationDefaults]
   }
 
   def populateDBClientSession(
@@ -360,7 +342,7 @@ object BX extends BaseXXMLUtilities
     }
     catch {
       case e : BaseXException => {
-	tweetTrace( e )
+	report( e, Severity.Trace )
       }
     }
   }

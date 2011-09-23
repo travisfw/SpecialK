@@ -24,9 +24,7 @@ trait MonadicTupleSpace[Place,Pattern,Resource]
 extends MonadicGenerators
 with FJTaskRunners
 {
-  self : WireTap
-      with Journalist
-      with ConfiggyReporting 
+  self : Reporting
       with ConfigurationTrampoline =>
 
   type RK = Option[Resource] => Unit @suspendable
@@ -135,8 +133,7 @@ with FJTaskRunners
   def mgetWithSuspension(
     channels : Map[Place,Resource],
     registered : Map[Place,List[RK]],
-    consume : Boolean,
-    cursor : Boolean
+    consume : Boolean
   )( ptn : Pattern )
   : Generator[Option[Resource],Unit,Unit] =
     Generator {
@@ -201,12 +198,12 @@ with FJTaskRunners
 
 	      if ( meets.isEmpty )  {
 		val place = representative( ptn )
-		tweet( "did not find a resource, storing a continuation: " + rk )
+		report( "did not find a resource, storing a continuation: " + rk, Severity.Debug )
 		registered( place ) =
 		  registered.get( place ).getOrElse( Nil ) ++ List( rk )
 		rk( None )
 	      }
-              else {
+	      else {
 		for(
 		  placeNRrscNSubst <- itergen[PlaceInstance](
 		    meets
@@ -214,7 +211,7 @@ with FJTaskRunners
 		) {
 		  val PlaceInstance( place, Left( rsrc ), s ) = placeNRrscNSubst
 		  
-		  tweet( "found a resource: " + rsrc )		  
+		  report( "found a resource: " + rsrc, Severity.Debug )
 		  if ( consume ) {
 		    channels -= place
 		  }
@@ -222,20 +219,19 @@ with FJTaskRunners
 		  
 		  //shift { k : ( Unit => Unit ) => k() }
  		}
-
- 	      tweet( "get returning" )
+ 	      }
+ 	      report( "get returning", Severity.Debug )
  	      outerk()
-            }
+ 	    }
  	}
      }
-    }
 
   def get( ptn : Pattern ) =
     mget( theMeetingPlace, theWaiters, true )( ptn )
   def fetch( ptn : Pattern ) =
     mget( theMeetingPlace, theWaiters, false )( ptn )
   def subscribe( ptn : Pattern ) =
-    mget( theChannels, theSubscriptions, true )( ptn )
+    mget( theChannels, theSubscriptions, true )( ptn )  
 
   def mputWithSuspension(
     channels : Map[Place,Resource],
@@ -244,7 +240,7 @@ with FJTaskRunners
   )( ptn : Pattern, rsrc : Resource ) : Unit @suspendable = {    
     for( placeNRKsNSubst <- putPlaces( channels, registered, ptn, rsrc ) ) {
       val PlaceInstance( wtr, Right( rks ), s ) = placeNRKsNSubst
-      tweet( "waiters waiting for a value at " + wtr + " : " + rks )
+      report( "waiters waiting for a value at " + wtr + " : " + rks, Severity.Trace )
       rks match {
 	case rk :: rrks => {	
 	  if ( consume ) {
@@ -297,7 +293,7 @@ with FJTaskRunners
 	waitlist match {
 	  // Yes!
 	  case waiter :: waiters => {
-	    tweet( "found waiters waiting for a value at " + ptn )
+	    report( "found waiters waiting for a value at " + ptn, Severity.Trace )
 	    val itr = waitlist.toList.iterator	    
 	    while( itr.hasNext ) {
 	      k( itr.next )
@@ -306,7 +302,7 @@ with FJTaskRunners
 	  // No...
 	  case Nil => {
 	    // Store the rsrc at a representative of the ptn
-	    tweet( "no waiters waiting for a value at " + ptn )
+	    report( "no waiters waiting for a value at " + ptn, Severity.Trace )
 	    channels( representative( ptn ) ) = rsrc
 	  }
 	}
@@ -320,7 +316,7 @@ with FJTaskRunners
   )( ptn : Pattern, rsrc : Resource ) : Unit @suspendable = {    
     for( placeNRKsNSubst <- putPlaces( channels, registered, ptn, rsrc ) ) {
       val PlaceInstance( wtr, Right( rks ), s ) = placeNRKsNSubst
-      tweet( "waiters waiting for a value at " + wtr + " : " + rks )
+      report( "waiters waiting for a value at " + wtr + " : " + rks, Severity.Trace )
       rks match {
 	case rk :: rrks => {	
 	  if ( consume ) {
@@ -350,20 +346,11 @@ with FJTaskRunners
   
 }
 
-package usage {
-/* ------------------------------------------------------------------
- * Mostly self-contained object to support unit testing
- * ------------------------------------------------------------------ */ 
-
 import java.util.regex.{Pattern => RegexPtn, Matcher => RegexMatcher}
 
 object MonadicRegexTSpace
        extends MonadicTupleSpace[String,String,String]
-       with WireTap
-       with Journalist
-       with ConfiggyReporting
-       //with ConfiggyJournal
-       with ConfiguredJournal
+       with Reporting
        with ConfigurationTrampoline
 {
 
@@ -373,10 +360,6 @@ object MonadicRegexTSpace
   override val theChannels = new HashMap[String,String]()
   override val theWaiters = new HashMap[String,List[RK]]()
   override val theSubscriptions = new HashMap[String,List[RK]]()
-
-  override def tap [A] ( fact : A ) : Unit = {
-    reportage( fact )
-  }
 
   override def configFileName : Option[String] = None
   override def configurationDefaults : ConfigurationDefaults = {
@@ -407,4 +390,3 @@ object MonadicRegexTSpace
 }
 
 
-}

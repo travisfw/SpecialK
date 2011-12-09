@@ -374,6 +374,8 @@ trait CnxnXML[Namespace,Var,Tag] {
   }
 
   def fromCaseClass [Namespace,Var,Tag] (
+    filter : java.lang.reflect.Method => Boolean
+  )(
     labelToNS : String => Namespace,
     valToTag : java.lang.Object => Tag
   )(
@@ -397,6 +399,7 @@ trait CnxnXML[Namespace,Var,Tag] {
 		&& (( m.getParameterTypes.size ) == 0)
 		&& (!java.util.regex.Pattern.matches( "product.*" , m.getName ))
 		&& (!java.util.regex.Pattern.matches( "copy.default.*" , m.getName ))
+		&& ( filter( m ) )
 	      )
 	  ) yield {
 	    new CnxnCtxtBranch[Namespace,Var,Tag](
@@ -412,6 +415,15 @@ trait CnxnXML[Namespace,Var,Tag] {
       }
     }
     fromCC( cc )
+  }
+
+  def fromCaseClass [Namespace,Var,Tag] (
+    labelToNS : String => Namespace,
+    valToTag : java.lang.Object => Tag
+  )(
+    cc : Product
+  ) : CnxnCtxtLabel[Namespace,Var,Tag] with Factual = {
+    fromCaseClass( ( m : java.lang.reflect.Method ) => true )( labelToNS, valToTag )( cc )
   }
 
   def fromCaseClass(

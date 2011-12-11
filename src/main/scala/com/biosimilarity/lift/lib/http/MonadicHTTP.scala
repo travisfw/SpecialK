@@ -366,6 +366,9 @@ package usage {
 		 new DefaultConnectingIOReactor()
 	       lazy val pccm =
 		 new PoolingClientConnectionManager( dcior1 )
+	       lazy val httpClient =
+		 new DefaultHttpAsyncClient( pccm )
+
 	       override def dispatchContent [T] (
 		 response : HttpResponse
 	       ) : T = {
@@ -377,16 +380,16 @@ package usage {
 
 	       object EtherpadLiteAPI 
 	       extends EtherpadLiteAPIData
-	       with Argonaut {
+	       with Argonaut {		 
 		 def apply(
 		   handler : String => Unit,
 		   req : EtherpadAPIMsg
 		 ) : Unit = {
 		   reset {
 		     for(
-		       rsp <- MndHTTPStringDispatcher.beginService(
-			 pccm,
-			 toEtherpadRequest( req )
+		       rsp <- MndHTTPStringDispatcher.read [String] (
+			 httpClient,
+			 new HttpGet( toEtherpadRequest( req ) )
 		       )
 		     ) {
 		       handler( rsp )

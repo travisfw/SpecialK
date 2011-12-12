@@ -17,7 +17,7 @@ import com.biosimilarity.lift.lib.moniker._
 
 import scala.concurrent.{Channel => Chan, _}
 import scala.concurrent.cpsops._
-import scala.util.continuations._ 
+import scala.util.continuations._
 import scala.xml._
 import scala.collection.MapProxy
 import scala.collection.mutable.Map
@@ -46,7 +46,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.OutputStreamWriter
 
-trait MonadicTermTypes[Namespace,Var,Tag,Value] 
+trait MonadicTermTypes[Namespace,Var,Tag,Value]
 extends MonadicGenerators {
   trait Resource
   case class Ground( v : Value ) extends Resource
@@ -58,28 +58,75 @@ extends MonadicGenerators {
     rsrc : Option[Resource], soln : Option[Solution[String]]
   ) extends Resource
 
-  type GetRequest = CnxnCtxtLabel[Namespace,Var,Tag]  
+  type GetRequest = CnxnCtxtLabel[Namespace,Var,Tag]
 
   class TMapR[Namespace,Var,Tag,Value]
-  extends HashMap[GetRequest,Resource]  
+  extends HashMap[GetRequest,Resource]
 
   trait Color
   case object Clear extends Color
   case object Opaque extends Color
 
   class RMapC[Namespace,Var,Tag,Value]
-  extends HashMap[Resource,Color]  
+  extends HashMap[Resource,Color]
+
+  //replace getGV to use asGroundValue?
+  def asGroundValue( rsrc : Resource ) : Option[Value] = {
+      rsrc match {
+	case Ground( v ) => Some( v )
+	case RBound( Some( nrsrc ), _ ) => asGroundValue( nrsrc )
+	case _ => None
+      }
+    }
+
+  //conversion to different resources is the responsibility of the Resource Scope
+  //BUGBUG: is key really needed?
+  def asResource(
+//    key: Resource, // must have the pattern to determine bindings
+    value: Option[ Value ]
+    ): Option[ Resource ] =
+  {
+    value match {
+      case Some(x: Value) => {
+        Some(
+          RBound(
+            Some(Ground(x)),
+            None
+          )
+        )
+      }
+      case _ => {
+        println("not a valid value, cannot convert to resource")
+        None
+      }
+    }
+  }
+
+  def asCursor(
+      values : List[Resource]
+    ) : Option[Resource] = {
+
+    val ig: Generator[ Resource, Unit, Unit ] = itergen[ Resource ](values)
+    // BUGBUG -- LGM need to return the Solution
+    // Currently the PersistenceManifest has no access to the
+    // unification machinery
+    Some(
+      RBound(
+        Some(Cursor(ig)),
+        None
+      )
+    )
+  }
+
+
+  //add asContinuation here later?
 }
 
 trait MonadicTermTypeScope[Namespace,Var,Tag,Value] {
   type MTTypes <: MonadicTermTypes[Namespace,Var,Tag,Value]
-  def protoTermTypes : MTTypes
+  val protoTermTypes : MTTypes
   val mTT : MTTypes = protoTermTypes
-  def asCCL(
-    gReq : mTT.GetRequest
-  ) : CnxnCtxtLabel[Namespace,Var,Tag] with Factual = {
-    gReq.asInstanceOf[CnxnCtxtLabel[Namespace,Var,Tag] with Factual]
-  }
+
   implicit def toValue( v : Value ) = mTT.Ground( v )
 }
 
@@ -87,8 +134,8 @@ trait DistributedAskTypes {
   trait Ask
   case object AGet extends Ask
   case object AFetch extends Ask
-  case object ASubscribe extends Ask    
-  
+  case object ASubscribe extends Ask
+
   // workaround due to bug in scala runtime
   type AskNum = Int
   val AGetNum : AskNum = 0
@@ -102,14 +149,14 @@ trait DistributedAskTypeScope {
   val dAT : DATypes = protoAskTypes
 }
 
-trait MonadicTermStoreScope[Namespace,Var,Tag,Value] 
-extends MonadicTermTypeScope[Namespace,Var,Tag,Value] 
+trait MonadicTermStoreScope[Namespace,Var,Tag,Value]
+extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
   with MonadicDTSMsgScope[Namespace,Var,Tag,Value]
-  with DistributedAskTypeScope {          
+  with DistributedAskTypeScope {
 
   class MonadicTermStore(
   )
-  extends MonadicTupleSpace[mTT.GetRequest,mTT.GetRequest,mTT.Resource] 
+  extends MonadicTupleSpace[mTT.GetRequest,mTT.GetRequest,mTT.Resource]
   with CnxnCtxtInjector[Namespace,Var,Tag]
   with CnxnUnificationCompositeTermQuery[Namespace,Var,Tag]
   with CnxnConversions[Namespace,Var,Tag]
@@ -123,7 +170,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     override def tap [A] ( fact : A ) : Unit = {
       reportage( fact )
     }
-    
+
     override val theMeetingPlace =
       new mTT.TMapR[Namespace,Var,Tag,Value]()
     override val theChannels =
@@ -144,7 +191,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	 }
 
     override type Substitution = PrologSubstitution
-    
+
     override def representative(
       ptn : mTT.GetRequest
     ) : mTT.GetRequest = {
@@ -195,7 +242,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     override def configurationDefaults : ConfigurationDefaults = {
       ApplicationDefaults.asInstanceOf[ConfigurationDefaults]
     }
- 
+
   }
 
   abstract class MonadicGeneratorJunction(
@@ -241,7 +288,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       // Dummy declarations to avoid a bug in the scala runtime
       val das = ask
       val dasClass = ask.getClass
-      
+
       for(
 	( uri, jsndr ) <- agentTwistedPairs
 	if !hops.contains( uri )
@@ -251,7 +298,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	)
 	val smajatp : SMAJATwistedPair =
 	  jsndr.asInstanceOf[SMAJATwistedPair]
-	
+
 	smajatp.send(
 	  ask match {
 	    case dAT.AGet => {
@@ -273,7 +320,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	)
       }
     }
-    
+
     def forward(
       ask : dAT.AskNum,
       //hops : List[URI],
@@ -294,7 +341,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	)
 	val smajatp : SMAJATwistedPair =
 	  jsndr.asInstanceOf[SMAJATwistedPair]
-	
+
 	smajatp.send(
 	  ask match {
 	    case dAT.AGetNum => {
@@ -334,12 +381,12 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
   ) with QueueNameVender {
     def sendRsp(
       atp : SemiMonadicAgentJSONAMQPTwistedPair[String],
-      dreq : Msgs.DReq,	
+      dreq : Msgs.DReq,
       oGv : Option[Value]
     ) = {
       val smajatp : SMAJATwistedPair =
 	atp.asInstanceOf[SMAJATwistedPair]
-      
+
       smajatp.send(
 	dreq match {
 	  case Msgs.MDGetRequest( path ) => {
@@ -406,35 +453,35 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       for(
 	atp <- agentTwistedPairs.get( msrc );
 	value <- oV
-      ) {	
+      ) {
 
 	value match {
 	  case mTT.RBound(
 	    Some( mTT.Ground( gv ) ),
-	    Some( soln ) 
+	    Some( soln )
 	  ) => {
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
 	      )
 	    )
-	    
+
 	    sendRsp( atp, dreq, Some( gv ) )
-	      
+
 	  }
 
 	  case mTT.RBound(
 	    Some( mTT.Ground( gv ) ),
-	    None 
+	    None
 	  ) => {
 	    tweet(
 	      (
 		this + " sending value " + oV + " back "
 	      )
 	    )
-	    
+
 	    sendRsp( atp, dreq, Some( gv ) )
-	      
+
 	  }
 
 	  case mTT.Ground( gv ) => {
@@ -443,14 +490,14 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		this + " sending value " + oV + " back "
 	      )
 	    )
-	    
+
 	    sendRsp( atp, dreq, Some( gv ) )
 
 	  }
 	  case _ => {
 	    tweet(
 	      (
-		this 
+		this
 		+ " not sending composite value " + oV
 		+ " back "
 	      )
@@ -461,15 +508,15 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       oV
     }
 
-    def handleRequest( dreq : Msgs.JTSReq ) : Unit = {      
-      val JustifiedRequest( 
+    def handleRequest( dreq : Msgs.JTSReq ) : Unit = {
+      val JustifiedRequest(
 	msgId, mtrgt, msrc, lbl, body, _
       ) = dreq
 
       tweet( this + "handling : " + dreq )
 
       body match {
-	case dgreq@Msgs.MDGetRequest( path ) => {	  
+	case dgreq@Msgs.MDGetRequest( path ) => {
 	  tweet(
 	    ( this + "getting locally for location : " + path )
 	  )
@@ -477,7 +524,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    for( v <- get( List( msrc ) )( false )( path ) ) {
 	      tweet(
 		(
-		  this 
+		  this
 		  + " returning from local get for location : "
 		  + path
 		  + "\nwith value : " + v
@@ -487,7 +534,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    }
 	  }
 	}
-	
+
 	case dfreq@Msgs.MDFetchRequest( path ) => {
 	  tweet(
 	    ( this + "fetching locally for location : " + path )
@@ -496,7 +543,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    for( v <- fetch( List( msrc ) )( false )( path ) ) {
 	      tweet(
 		(
-		  this 
+		  this
 		  + " returning from local fetch for location : "
 		  + path
 		  + "\nwith value : " + v
@@ -515,7 +562,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    for( v <- subscribe( List( msrc ) )( path ) ) {
 	      tweet(
 		(
-		  this 
+		  this
 		  + " returning from local subscribe for location : "
 		  + path
 		  + "\nwith value : " + v
@@ -525,14 +572,14 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	    }
 	  }
 	}
-	
-	case dpreq@Msgs.MDPutRequest( path, value ) => {	
+
+	case dpreq@Msgs.MDPutRequest( path, value ) => {
 	  reset { put( path, mTT.Ground( value ) ) }
 	  for( atp <- agentTwistedPairs.get( msrc ) ) {
 	    sendRsp( atp, dpreq, None )
 	  }
 	}
-	case dpbreq@Msgs.MDPublishRequest( path, value ) => {	
+	case dpbreq@Msgs.MDPublishRequest( path, value ) => {
 	  reset { publish( path, mTT.Ground( value ) ) }
 	  for( atp <- agentTwistedPairs.get( msrc ) ) {
 	    sendRsp( atp, dpbreq, None )
@@ -540,9 +587,9 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	}
       }
     }
-    
-    def handleResponse( drsp : Msgs.JTSRsp ) : Unit = {      
-      val JustifiedResponse( 
+
+    def handleResponse( drsp : Msgs.JTSRsp ) : Unit = {
+      val JustifiedResponse(
 	  msgId, mtrgt, msrc, lbl, body, _
       ) = drsp
 
@@ -556,25 +603,25 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	case Msgs.MDSubscribeResponse( path, value ) => {
 	  reset { publish( path, mTT.Ground( value ) ) }
 	}
-	case dput : Msgs.MDPutResponse[Namespace,Var,Tag,Value] => {	
+	case dput : Msgs.MDPutResponse[Namespace,Var,Tag,Value] => {
 	}
-	case dpub : Msgs.MDPublishResponse[Namespace,Var,Tag,Value] => {	
+	case dpub : Msgs.MDPublishResponse[Namespace,Var,Tag,Value] => {
 	}
 	case _ => {
 	  tweet(
 	    (
-	      this 
+	      this
 	      + " handling unexpected message : " + body
 	    )
 	  )
 	}
       }
     }
-    
+
     def handleIncoming( dmsg : Msgs.JTSReqOrRsp ) : Unit = {
       dmsg match {
 	case Left(
-	  dreq@JustifiedRequest( 
+	  dreq@JustifiedRequest(
 	    msgId, mtrgt, msrc, lbl, body, _
 	  )
 	) => {
@@ -588,7 +635,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	  handleRequest( dreq )
 	}
 	case Right(
-	  drsp@JustifiedResponse( 
+	  drsp@JustifiedResponse(
 	    msgId, mtrgt, msrc, lbl, body, _
 	  )
 	) => {
@@ -613,14 +660,14 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
       Generator {
 	rk : ( Option[mTT.Resource] => Unit @suspendable ) =>
 	  shift {
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path ) 
+		  oV <- mget( channels, registered, consume )( path )
 		) {
 		  oV match {
 		    case None => {
@@ -644,14 +691,14 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
       Generator {
 	rk : ( Option[mTT.Resource] => Unit @suspendable ) =>
 	  shift {
 	    outerk : ( Unit => Unit ) =>
 	      reset {
 		for(
-		  oV <- mget( channels, registered, consume )( path ) 
+		  oV <- mget( channels, registered, consume )( path )
 		) {
 		  oV match {
 		    case None => {
@@ -666,23 +713,23 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 	  }
       }
     }
-  
+
     //def get( hops : List[URI] )(
     def get( hops : List[Moniker] )(
       cursor : Boolean
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+
       // Dummy declarations to avoid a bug in the scala runtime
       // val das = dAT.AGet
 //       val dasClass = dAT.AGet.getClass
-      
+
       //mget( dAT.AGet, hops )(
       mget( dAT.AGetNum, hops )(
 	theMeetingPlace, theWaiters, true, cursor
-      )( path )    
+      )( path )
     }
 
     def get(
@@ -692,29 +739,29 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     )
     : Generator[Option[mTT.Resource],Unit,Unit] = {
       get( Nil )( cursor )( path )
-    }    
+    }
 
     //def get( hops : List[URI] )(
     // def get( hops : List[Moniker] )(
 //       path : CnxnCtxtLabel[Namespace,Var,Tag]
 //     )
-//     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      
+//     : Generator[Option[mTT.Resource],Unit,Unit] = {
+
       // Dummy declarations to avoid a bug in the scala runtime
       // val das = dAT.AGet
 //       val dasClass = dAT.AGet.getClass
-      
+
       //mget( dAT.AGet, hops )(
 //       mget( dAT.AGetNum, hops )(
 // 	theMeetingPlace, theWaiters, true, false
-//       )( path )    
+//       )( path )
 //     }
 
     override def get(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      get( Nil )( false )( path )    
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+      get( Nil )( false )( path )
     }
 
     def getValueWithSuspension(
@@ -767,7 +814,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		  case None =>
 		}
 	      }
-	      case None => 
+	      case None =>
 	    };
 	  }
       }
@@ -778,8 +825,8 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+
       // Dummy declarations to avoid a bug in the scala runtime
       // val das = dAT.AFetch
 //       val dasClass = dAT.AFetch.getClass
@@ -787,7 +834,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       //mget( dAT.AFetch, hops )(
       mget( dAT.AFetchNum, hops )(
 	theMeetingPlace, theWaiters, false, cursor
-      )( path )    
+      )( path )
     }
 
     def fetch(
@@ -803,8 +850,8 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 //     def fetch( hops : List[Moniker] )(
 //       path : CnxnCtxtLabel[Namespace,Var,Tag]
 //     )
-//     : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      
+//     : Generator[Option[mTT.Resource],Unit,Unit] = {
+
       // Dummy declarations to avoid a bug in the scala runtime
       // val das = dAT.AFetch
 //       val dasClass = dAT.AFetch.getClass
@@ -812,19 +859,19 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       //mget( dAT.AFetch, hops )(
 //       mget( dAT.AFetchNum, hops )(
 // 	theMeetingPlace, theWaiters, false, false
-//       )( path )    
+//       )( path )
 //     }
 
     override def fetch(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      fetch( Nil )( false )( path )    
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+      fetch( Nil )( false )( path )
     }
 
     def fetchValue(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
-    ) : Generator[Value,Unit,Unit] = 
+    ) : Generator[Value,Unit,Unit] =
       Generator {
 	k : ( Value => Unit @suspendable ) =>
 	  for(
@@ -839,7 +886,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		  case None =>
 		}
 	      }
-	      case None => 
+	      case None =>
 	    };
 	  }
       }
@@ -848,7 +895,7 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
     def subscribe( hops : List[Moniker] )(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
 
       // Dummy declarations to avoid a bug in the scala runtime
       // val das = dAT.ASubscribe
@@ -857,19 +904,19 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
       //mget( dAT.ASubscribe, hops )(
       mget( dAT.ASubscribeNum, hops )(
 	theChannels, theSubscriptions, true, false
-      )( path )    
+      )( path )
     }
 
     override def subscribe(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
     )
-    : Generator[Option[mTT.Resource],Unit,Unit] = {        
-      subscribe( Nil )( path )    
+    : Generator[Option[mTT.Resource],Unit,Unit] = {
+      subscribe( Nil )( path )
     }
-    
+
     def subscribeValue(
       path : CnxnCtxtLabel[Namespace,Var,Tag]
-    ) : Generator[Value,Unit,Unit] = 
+    ) : Generator[Value,Unit,Unit] =
       Generator {
 	k : ( Value => Unit @suspendable ) =>
 	  for(
@@ -884,21 +931,21 @@ extends MonadicTermTypeScope[Namespace,Var,Tag,Value]
 		  case None =>
 		}
 	      }
-	      case None => 
+	      case None =>
 	    };
 	  }
       }
   }
-   
+
 }
 
 package usage {
 /* ------------------------------------------------------------------
  * Mostly self-contained object to support unit testing
- * ------------------------------------------------------------------ */ 
+ * ------------------------------------------------------------------ */
 
 object MonadicTS
- extends MonadicTermStoreScope[String,String,String,String] 
+ extends MonadicTermStoreScope[String,String,String,String]
   with UUIDOps {
     import SpecialKURIDefaults._
     import CnxnLeafAndBranch._
@@ -906,26 +953,26 @@ object MonadicTS
 
     type MTTypes = MonadicTermTypes[String,String,String,String]
     object TheMTT extends MTTypes
-    override def protoTermTypes : MTTypes = TheMTT
+    override val protoTermTypes : MTTypes = TheMTT
 
     type DATypes = DistributedAskTypes
     object TheDAT extends DATypes
     override def protoAskTypes : DATypes = TheDAT
-    
+
     lazy val Mona = new MonadicTermStore()
     def ptToPt( a : String, b : String )  =
-      new DistributedMonadicGeneratorJunction( a, List( b ) )    
+      new DistributedMonadicGeneratorJunction( a, List( b ) )
     def loopBack() = {
       ptToPt( "localhost", "localhost" )
     }
-    
-    type MsgTypes = DTSMSH[String,String,String,String]   
-    
+
+    type MsgTypes = DTSMSH[String,String,String,String]
+
     val protoDreqUUID = getUUID()
-    val protoDrspUUID = getUUID()    
-    
+    val protoDrspUUID = getUUID()
+
     object MonadicDMsgs extends MsgTypes {
-      
+
       override def protoDreq : DReq = MDGetRequest( aLabel )
       override def protoDrsp : DRsp = MDGetResponse( aLabel, aLabel.toString )
       override def protoJtsreq : JTSReq =
@@ -937,7 +984,7 @@ object MonadicTS
 	  protoDreq,
 	  None
 	)
-      override def protoJtsrsp : JTSRsp = 
+      override def protoJtsrsp : JTSRsp =
 	JustifiedResponse(
 	  protoDreqUUID,
 	  new URI( "agent", protoDrspUUID.toString, "/invitation", "" ),
@@ -949,7 +996,7 @@ object MonadicTS
       override def protoJtsreqorrsp : JTSReqOrRsp =
 	Left( protoJtsreq )
     }
-    
+
     override def protoMsgs : MsgTypes = MonadicDMsgs
   }
 

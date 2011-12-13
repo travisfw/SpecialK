@@ -224,14 +224,39 @@ package usage {
 /* ------------------------------------------------------------------
  * Mostly self-contained object to support unit testing
  * ------------------------------------------------------------------ */ 
-  import com.biosimilarity.lift.lib.jsonutil._
-
   import org.apache.http.impl.conn.tsccm._
   import org.apache.http.impl.nio.reactor._
   import org.apache.http.impl.nio.client.DefaultHttpAsyncClient
   import org.apache.http.impl.nio.conn.PoolingClientConnectionManager  
 
   import java.io.StringReader  
+
+  trait Argonaut {        
+    import com.fasterxml.jackson.module.scala._
+    import org.codehaus.jackson.map.ObjectMapper
+    
+    lazy val mapper = {
+      val m = new ObjectMapper()
+      m.registerModule(DefaultScalaModule)
+      m
+    }
+    
+    def toMap( json : String ) : scala.collection.Map[String,Object] = {
+      mapper.readValue( json, classOf[scala.collection.Map[String,Object]] ).asInstanceOf[scala.collection.Map[String,Object]]
+    }
+    
+    def getRspData [T] ( jsonRsp : String, key : String ) : Option[T] = {
+      import scala.collection.JavaConverters._
+      
+      for(	
+	rspData <- toMap( jsonRsp ).get( "data" );
+	v <- rspData.asInstanceOf[java.util.LinkedHashMap[String,Object]].asScala.get( key )
+      ) yield {
+	v.asInstanceOf[T]
+      }
+    }
+    
+  }
   
   trait EtherpadLiteAPIData {
     val stdCaseClassMethods =

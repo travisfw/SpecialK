@@ -17,8 +17,10 @@ import scala.util.continuations._
 import scala.concurrent.{Channel => Chan, _}
 import scala.concurrent.cpsops._
 
-import _root_.com.rabbitmq.client.{ Channel => RabbitChan, _}
-import _root_.scala.actors.Actor
+import com.rabbitmq.client.{ Channel => RabbitChan, _}
+import scala.actors.Actor
+
+import scala.collection.Map
 
 import com.thoughtworks.xstream.XStream
 import com.thoughtworks.xstream.io.json.JettisonMappedXmlDriver
@@ -36,10 +38,10 @@ import java.io.IOException;
 import java.util.concurrent.Future;
 
 import java.net.URI
-import _root_.java.io.ObjectInputStream
-import _root_.java.io.ByteArrayInputStream
-import _root_.java.util.Timer
-import _root_.java.util.TimerTask
+import java.io.ObjectInputStream
+import java.io.ByteArrayInputStream
+import java.util.Timer
+import java.util.TimerTask
 
 trait MonadicHTTPDispatcher[T]
  extends MonadicGenerators
@@ -222,28 +224,14 @@ package usage {
 /* ------------------------------------------------------------------
  * Mostly self-contained object to support unit testing
  * ------------------------------------------------------------------ */ 
+  import com.biosimilarity.lift.lib.jsonutil._
+
   import org.apache.http.impl.conn.tsccm._
   import org.apache.http.impl.nio.reactor._
   import org.apache.http.impl.nio.client.DefaultHttpAsyncClient
   import org.apache.http.impl.nio.conn.PoolingClientConnectionManager  
 
-  import com.biosimilarity.magritte.json._
-  import com.biosimilarity.magritte.json.Absyn._
-  import java.io.StringReader
-
-  trait Argonaut {
-    def lexer (str : String) = new Yylex(new StringReader(str))
-    def parser (str : String) = new parser(lexer(str))
-    def parseJSONStr( str : String ) =
-      {
-	try {
-	  Some((parser(str)).pJSONObject())
-	}
-	catch {
-	  case _ => None
-	}
-      }
-  }
+  import java.io.StringReader  
   
   trait EtherpadLiteAPIData {
     val stdCaseClassMethods =
@@ -355,52 +343,108 @@ package usage {
     case class IsPasswordProtected( padID : String ) extends EtherpadAPIMsg
     
   }  
-  
+
   object MndHTTPStringDispatcher
-	     extends MonadicHTTPDispatcher[String]
-	     with WireTap
-	     with Journalist
-	     with ConfiggyReporting
-	     with ConfiggyJournal {
-	       lazy val dcior1 =
-		 new DefaultConnectingIOReactor()
-	       lazy val pccm =
-		 new PoolingClientConnectionManager( dcior1 )
-	       lazy val httpClient =
-		 new DefaultHttpAsyncClient( pccm )
+	 extends MonadicHTTPDispatcher[String]
+	 with WireTap
+	 with Journalist
+	 with ConfiggyReporting
+	 with ConfiggyJournal
+  {
+    lazy val dcior1 =
+      new DefaultConnectingIOReactor()
+    lazy val pccm =
+      new PoolingClientConnectionManager( dcior1 )
+    lazy val httpClient =
+      {
+	val httpC = new DefaultHttpAsyncClient( pccm );
+	httpC.start
+	httpC
+      }
+    
+    override def dispatchContent [T] (
+      response : HttpResponse
+    ) : T = {
+      org.apache.commons.io.IOUtils.toString(
+	response.getEntity.getContent,
+	"UTF-8"
+      ).asInstanceOf[T]
+    }
+    
+    object EtherpadLiteAPI extends EtherpadLiteAPIData
+    {
+      def apply(
+	req : EtherpadAPIMsg,
+	handler : String => Unit
+      ) : Unit = {
+	reset {
+	  for(
+	    rsp <- MndHTTPStringDispatcher.read [String] (
+	      httpClient,
+	      new HttpGet( toEtherpadRequest( req ) )
+	    )
+	  ) {
+	    handler( rsp )
+	  }
+	}
+      }
+    }
+    
+    override def tap [A]( fact : A ) : Unit = {
+      blog( fact )
+    }	       
+    
+    object ComeOnOverToMyPad extends Argonaut {		 
+      import java.security.SecureRandom
+      import java.math.BigInteger
+      import java.net.URLEncoder
 
-	       override def dispatchContent [T] (
-		 response : HttpResponse
-	       ) : T = {
-		 org.apache.commons.io.IOUtils.toString(
-		   response.getEntity.getContent,
-		   "UTF-8"
-		 ).asInstanceOf[T]
-	       }
+      def randomSuffix() : String = {
+	new BigInteger( 130, new SecureRandom() ).toString( 32 ).substring( 0, 10 )
+      }
 
-	       object EtherpadLiteAPI 
-	       extends EtherpadLiteAPIData
-	       with Argonaut {		 
-		 def apply(
-		   handler : String => Unit,
-		   req : EtherpadAPIMsg
-		 ) : Unit = {
-		   reset {
-		     for(
-		       rsp <- MndHTTPStringDispatcher.read [String] (
-			 httpClient,
-			 new HttpGet( toEtherpadRequest( req ) )
-		       )
-		     ) {
-		       handler( rsp )
-		     }
-		   }
-		 }
-	       }
-
-	       override def tap [A]( fact : A ) : Unit = {
-		 blog( fact )
-	       }	       
-	     }
-
+      def andHaveSomeFun() : Unit = {
+	println( "sending CreateGroupIfNotExistsFor request" )
+	EtherpadLiteAPI(
+	  EtherpadLiteAPI.CreateGroupIfNotExistsFor(
+	    "lgreg.meredith@gmail.com" 
+	  ),
+	  ( jsonRsp : String ) => {	      
+	    println( "handling response to CreateGroupIfNotExistsFor request" )
+	    for( groupID <- getRspData[String]( jsonRsp, "groupID" ) ) {
+	      val padName = "myPad" + randomSuffix()	      
+	      println( "sending CreateGroupPad request" )
+	      EtherpadLiteAPI(
+		EtherpadLiteAPI.CreateGroupPad(
+		  groupID,
+		  padName,
+		  URLEncoder.encode( "lambda x.x" )
+		),
+		( jsonRsp : String ) => {    		    
+		  println( "handling response to CreateGroupPad request" )
+		  for( padID <- getRspData[String]( jsonRsp, "padID" ) ) {
+		    println( "sending GetText request" )
+		    EtherpadLiteAPI(
+		      EtherpadLiteAPI.GetText( padID ),
+		      ( jsonRsp : String ) => {
+			println( "handling response to GetText request" )
+			for( padText <- getRspData[String]( jsonRsp, "text" ) ) {
+			  println(
+			    "Etherpad( " + padID + " )"
+			    + "\ncreated in group( " + groupID + " )"
+			    + "\nwith contents: " + padText
+			  )
+			}
+		      } 
+		    )
+		  }
+		}
+	      )
+	    }
+	  }
+	)
+      }
+    }
+  }  
+  
 }

@@ -24,17 +24,14 @@ trait Argonaut {
     mapper.readValue( json, classOf[scala.collection.Map[String,Object]] ).asInstanceOf[scala.collection.Map[String,Object]]
   }
       
-  // def getRspDataBug [T] ( jsonRsp : String, key : String ) : Option[T] = {
+//   def getRspDataBug [T] ( jsonRsp : String, key : String ) : Option[T] = {
 //     import scala.collection.JavaConverters._
 
-//     val map : scala.collection.Map[String,Object] = toMap( jsonRsp )
-//     val oRspData : Option[Object] = map.get( "data" )
-
 //     for(	
-//       rspData <- oRspData;
-//       oT <- rspData.asInstanceOf[java.util.LinkedHashMap[String,Object]].asScala.get( key )
+//       rspData <- toMap( jsonRsp ).get( "data" );
+//       v <- rspData.asInstanceOf[java.util.LinkedHashMap[String,Object]].asScala.get( key )
 //     ) {
-//       oT.asInstanceOf[T]
+//       v.asInstanceOf[T]
 //     }
 //   }
 
@@ -43,10 +40,8 @@ trait Argonaut {
 
     toMap( jsonRsp ).get( "data" ) match {
       case Some( rspData ) => {
-	val rspDataMap =
-	  rspData.asInstanceOf[java.util.LinkedHashMap[String,Object]].asScala
-	rspDataMap.get( key ) match {
-	  case Some( t ) => Some( t.asInstanceOf[T] )
+	rspData.asInstanceOf[java.util.LinkedHashMap[String,Object]].asScala.get( key ) match {
+	  case Some( v ) => Some( v.asInstanceOf[T] )
 	  case _ => None
 	}
       }

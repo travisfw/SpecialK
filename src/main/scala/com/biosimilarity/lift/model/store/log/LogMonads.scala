@@ -59,7 +59,7 @@
 //
 //      type MTTypes = MonadicTermTypes[String,String,String,A]
 //      object TheMTT extends MTTypes
-//      override val protoTermTypes : MTTypes = TheMTT
+//      override def protoTermTypes : MTTypes = TheMTT
 //
 //      type DATypes = DistributedAskTypes
 //      object TheDAT extends DATypes

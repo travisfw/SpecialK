@@ -375,7 +375,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
 
 
     def putInStore(
-      persist : Option[PersistManifest[mTT.GetRequest, mTT.Resource, Elem, Namespace,Var,Tag,Value]],
+      persist : Option[T],
       channels : Map[mTT.GetRequest,mTT.Resource],
       ptn : mTT.GetRequest,
       wtr : Option[mTT.GetRequest],
@@ -416,7 +416,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
       }
     }
 
-    def putPlaces( persist : Option[PersistManifest[mTT.GetRequest, mTT.Resource, Elem, Namespace,Var,Tag,Value]] )(
+    def putPlaces( persist : Option[T] )(
       channels : Map[mTT.GetRequest,mTT.Resource],
       registered : Map[mTT.GetRequest,List[RK]],
       ptn : mTT.GetRequest,
@@ -455,7 +455,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
       }
     }
     
-    def mput( persist : Option[PersistManifest[mTT.GetRequest, mTT.Resource, Elem, Namespace,Var,Tag,Value]] )(
+    def mput( persist : Option[T] )(
       channels : Map[mTT.GetRequest,mTT.Resource],
       registered : Map[mTT.GetRequest,List[RK]],
       consume : Boolean,
@@ -497,7 +497,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
     }
 
     def mget(
-      persist : Option[PersistManifest[mTT.GetRequest, mTT.Resource, Elem, Namespace,Var,Tag,Value]],
+      persist : Option[T],
       ask : dAT.Ask,
       //hops : List[URI]
       hops : List[Moniker]
@@ -673,7 +673,7 @@ extends MonadicTermStoreScope[Namespace,Var,Tag,Value] {
     }
 
     def removeFromStore(
-      persist : Option[PersistManifest[mTT.GetRequest, mTT.Resource, Elem, Namespace,Var,Tag,Value]],
+      persist : Option[T],
       record : Elem,
       collName : Option[String]
     ) : Unit = {
@@ -835,7 +835,7 @@ object PersistedMonadicTS
 
     type MTTypes = MonadicTermTypes[String,String,String,String]
     object TheMTT extends MTTypes
-    override val protoTermTypes : MTTypes = TheMTT
+    override def protoTermTypes : MTTypes = TheMTT
 
     type DATypes = DistributedAskTypes
     object TheDAT extends DATypes
@@ -861,6 +861,10 @@ object PersistedMonadicTS
       {
         //BUGBUG: factorization issues by including XMLStoreConfiguration?
         override def configFileName : Option[String] = None
+
+        override def configurationDefaults : ConfigurationDefaults = {
+          ApplicationDefaults.asInstanceOf[ConfigurationDefaults]
+        }
 
         def kvNameSpace : String = "record"
 

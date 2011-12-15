@@ -124,7 +124,7 @@ extends MonadicGenerators {
 
 trait MonadicTermTypeScope[Namespace,Var,Tag,Value] {
   type MTTypes <: MonadicTermTypes[Namespace,Var,Tag,Value]
-  val protoTermTypes : MTTypes
+  def protoTermTypes : MTTypes
   val mTT : MTTypes = protoTermTypes
 
   implicit def toValue( v : Value ) = mTT.Ground( v )
@@ -953,7 +953,7 @@ object MonadicTS
 
     type MTTypes = MonadicTermTypes[String,String,String,String]
     object TheMTT extends MTTypes
-    override val protoTermTypes : MTTypes = TheMTT
+    override def protoTermTypes : MTTypes = TheMTT
 
     type DATypes = DistributedAskTypes
     object TheDAT extends DATypes

@@ -429,16 +429,16 @@ package usage {
       }
 
       def andHaveSomeFun() : Unit = {
-	println( "sending CreateGroupIfNotExistsFor request" )
+	println( ">>>> sending CreateGroupIfNotExistsFor request >>>>" )
 	EtherpadLiteAPI(
 	  EtherpadLiteAPI.CreateGroupIfNotExistsFor(
 	    "lgreg.meredith@gmail.com" 
 	  ),
 	  ( jsonRsp : String ) => {	      
-	    println( "handling response to CreateGroupIfNotExistsFor request" )
+	    println( "<<<< handling response to CreateGroupIfNotExistsFor request <<<<" )
 	    for( groupID <- getRspData[String]( jsonRsp, "groupID" ) ) {
 	      val padName = "myPad" + randomSuffix()	      
-	      println( "sending CreateGroupPad request" )
+	      println( ">>>> sending CreateGroupPad request >>>>" )
 	      EtherpadLiteAPI(
 		EtherpadLiteAPI.CreateGroupPad(
 		  groupID,
@@ -446,16 +446,16 @@ package usage {
 		  URLEncoder.encode( "lambda x.x" )
 		),
 		( jsonRsp : String ) => {    		    
-		  println( "handling response to CreateGroupPad request" )
+		  println( "<<<< handling response to CreateGroupPad request <<<<" )
 		  for( padID <- getRspData[String]( jsonRsp, "padID" ) ) {
-		    println( "sending GetText request" )
+		    println( ">>>> sending GetText request >>>>" )
 		    EtherpadLiteAPI(
 		      EtherpadLiteAPI.GetText( padID ),
 		      ( jsonRsp : String ) => {
-			println( "handling response to GetText request" )
+			println( "<<<< handling response to GetText request <<<<" )
 			for( padText <- getRspData[String]( jsonRsp, "text" ) ) {
 			  println(
-			    "Etherpad( " + padID + " )"
+			    "\nEtherpad( " + padID + " )"
 			    + "\ncreated in group( " + groupID + " )"
 			    + "\nwith contents: " + padText
 			  )

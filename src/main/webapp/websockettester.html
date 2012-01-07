@@ -1,16 +1,17 @@
 <html>
+<head>
+<title>WebSockets Client Demo</title>
+<script>
+	var socket = new WebSocket("ws://localhost:8090/websocket");
+	socket.onopen = function(){
+	    alert("Socket has been opened!");
+	}
+	socket.onmessage = function(msg) {
+	    alert(msg); //Awesome!
+	}
+	socket.send("Hello World!!");
+</script>
+</head>
 <body>
-	
-	<script src="http://easywebsocket.org/easyWebSocket.min.js"></script>
-	<script>
-	    var socket = new EasyWebSocket("ws://localhost:8080/websocket");
-	    socket.onopen = function(){
-		    socket.send("hello world!")
-	    }
-	    socket.onmessage = function(event){
-		    alert("received "+ event.data)
-	    }
-	</script>
-
 </body>
 </html>

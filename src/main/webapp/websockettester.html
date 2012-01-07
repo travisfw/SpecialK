@@ -3,7 +3,7 @@
 	
 	<script src="http://easywebsocket.org/easyWebSocket.min.js"></script>
 	<script>
-	    var socket = new EasyWebSocket("ws://localhost:8080/ws");
+	    var socket = new EasyWebSocket("ws://localhost:8080/websocket");
 	    socket.onopen = function(){
 		    socket.send("hello world!")
 	    }

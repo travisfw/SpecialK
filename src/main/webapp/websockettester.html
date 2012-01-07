@@ -1,0 +1,16 @@
+<html>
+<body>
+	
+	<script src="http://easywebsocket.org/easyWebSocket.min.js"></script>
+	<script>
+	    var socket = new EasyWebSocket("ws://localhost:8080/ws");
+	    socket.onopen = function(){
+		    socket.send("hello world!")
+	    }
+	    socket.onmessage = function(event){
+		    alert("received "+ event.data)
+	    }
+	</script>
+
+</body>
+</html>

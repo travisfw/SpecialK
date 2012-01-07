@@ -70,6 +70,7 @@ case class QueuingWebSocket(
     connection: WebSocket.Connection
   ) : Unit = {
     // BUGBUG -- lgm : is this thread safe?
+    println( "in onOpen with " + connection )
     wsMgr += ( ( this, connection ) )
   }
   
@@ -78,6 +79,7 @@ case class QueuingWebSocket(
     message: String
   ) : Unit = {
     // BUGBUG -- lgm : is this thread safe?
+    println( "in onClose with " + closeCode + " and " + message )
     wsMgr -= this
   }
   
@@ -85,6 +87,7 @@ case class QueuingWebSocket(
     message: String
   ) : Unit = {
     // BUGBUG -- lgm : is this thread safe?
+    println( "in onMessage with " + message )
     queue += message
   }    
 }
@@ -94,6 +97,10 @@ package usage {
 /* ------------------------------------------------------------------
  * Mostly self-contained object to support unit testing
  * ------------------------------------------------------------------ */ 
+
+  import com.biosimilarity.lift.model.store._
+  import com.biosimilarity.lift.model.store.usage._
+  import com.biosimilarity.lift.model.store.usage.PersistedMonadicTS._
 
   import com.biosimilarity.magritte.json._
   import com.biosimilarity.magritte.json.Absyn._

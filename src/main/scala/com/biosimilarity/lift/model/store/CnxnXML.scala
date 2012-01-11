@@ -112,13 +112,19 @@ trait CnxnXML[Namespace,Var,Tag] {
 	.replace( "java.lang", "")
 	.replace( ".", "" )
 
+	val lcTagStr =
+	  (
+	    tagStr.substring( 0, 1 ).toLowerCase
+	    + tagStr.substring( 1, tagStr.length )
+	  )
+
 	val tStr = 
 	  t match {
 	    case s : String => s
 	    case _ => t.toString
 	  }
 
-	xmlTrampoline( tagStr, tStr )
+	xmlTrampoline( lcTagStr, tStr )
       }
       case Right( v ) => {
 	<var>{ v.toString }</var>
@@ -235,7 +241,12 @@ trait CnxnXML[Namespace,Var,Tag] {
   ) : String = {
     leaf.tag match {
       case Left( t ) => {
-	t.toString
+	t match {
+	  case s : String => {
+	    "\"" + s + "\""
+	  }
+	  case _ => t.toString
+	}	
       }
       case Right( v ) => {
 	v.toString
@@ -268,7 +279,9 @@ trait CnxnXML[Namespace,Var,Tag] {
 
   class TermParser extends JavaTokenParsers {
     def term : Parser[Any] =
-      application | ground | variable
+      application | list | ground | variable
+    def list : Parser[Any] =
+      "["~repsep( term, "," )~"]"
     def ground : Parser[Any] =
       stringLiteral | floatingPointNumber | "true" | "false"
     def variable : Parser[Any] = ident
@@ -276,7 +289,16 @@ trait CnxnXML[Namespace,Var,Tag] {
       ident~"("~repsep( term, "," )~")"
 
     def termXform : Parser[CnxnCtxtLabel[String,String,Any] with Factual] =
-      applicationXform | groundXform | variableXform
+      applicationXform | listXform | groundXform | variableXform
+    def listXform : Parser[CnxnCtxtLabel[String,String,Any] with Factual] = 
+      "["~repsep( termXform, "," )~"]" ^^ {
+	case "["~terms~"]" => {
+	  new CnxnCtxtBranch[String,String,Any](
+	    "list",
+	    terms
+	  )
+	}
+      }
     def groundXform : Parser[CnxnCtxtLabel[String,String,Any] with Factual] =
       (
 	stringLiteral ^^ ( x => new CnxnCtxtLeaf[String,String,Any]( Left[Any,String]( x.replace( "\"", "" ) ) ) )
@@ -333,6 +355,7 @@ trait CnxnXML[Namespace,Var,Tag] {
      || (value.isInstanceOf[Int]) 
      || (value.isInstanceOf[Float])
      || (value.isInstanceOf[String])
+     //|| (value.isInstanceOf[Option[_]])
      // put more ground types here
    )
   }
@@ -373,13 +396,58 @@ trait CnxnXML[Namespace,Var,Tag] {
     }
   }
 
+  def caseClassAccessors( 
+    //cc : ScalaObject with Product with Serializable
+    cc : java.lang.Object
+  ) : Array[java.lang.reflect.Method] = {
+    // this is what you call a heuristic
+    // and heuristic is probably better than myistic 	      
+    cc.getClass.getMethods.filter(
+      ( m : java.lang.reflect.Method ) => {
+	((! javaBuiltins.contains( m.getName ) )
+	 && (( m.getParameterTypes.size ) == 0)
+	 && (!java.util.regex.Pattern.matches( "product.*" , m.getName ))
+	 && (!java.util.regex.Pattern.matches( "copy.default.*" , m.getName ))
+	 && (! java.lang.reflect.Modifier.isStatic( m.getModifiers() ) )
+       )
+      }
+    )
+  }
+
+  def caseClassNameSpace(
+    //cc : ScalaObject with Product with Serializable
+    cc : java.lang.Object
+  ) : String = {
+    val initialName = cc.getClass.getName
+    val nameComponents = initialName.split( "\\." ).toList
+    if ( nameComponents.length > 1 ) {
+      val iC =
+	nameComponents.take( 1 )( 0 )
+      val initialCompStr =
+	iC.substring( 0, 1 ).toLowerCase + iC.substring( 1, iC.length )
+
+      ( initialCompStr /: nameComponents.drop( 1 ) )(
+	{
+	  ( acc, e ) => {
+	    val compStr =
+	      e.substring( 0, 1 ).toUpperCase + e.substring( 1, e.length ) 
+	    acc + compStr
+	  }
+	}
+      )
+    }
+    else {
+      initialName
+    }
+  }
+
   def fromCaseClass [Namespace,Var,Tag] (
     filter : java.lang.reflect.Method => Boolean
   )(
     labelToNS : String => Namespace,
     valToTag : java.lang.Object => Tag
   )(
-    cc : Product
+    cc : ScalaObject with Product with Serializable
   ) : CnxnCtxtLabel[Namespace,Var,Tag] with Factual = {    
     def fromCC(
       cc : java.lang.Object
@@ -390,28 +458,48 @@ trait CnxnXML[Namespace,Var,Tag] {
 	)
       }
       else {
-	val facts =
-	  (for(
-	    m <- cc.getClass.getMethods;      
-	    // this is what you call a heuristic
-	    // and heuristic is probably better than myistic 
-	    if ((! javaBuiltins.contains( m.getName ) )
-		&& (( m.getParameterTypes.size ) == 0)
-		&& (!java.util.regex.Pattern.matches( "product.*" , m.getName ))
-		&& (!java.util.regex.Pattern.matches( "copy.default.*" , m.getName ))
-		&& ( filter( m ) )
+	if ( cc.isInstanceOf[Option[_]] ) {
+	  cc match {
+	    case Some(
+	      thing : ScalaObject with Product with Serializable
+	    ) => {
+	      new CnxnCtxtBranch[Namespace,Var,Tag](
+		labelToNS( "some" ),
+		List(
+		  fromCaseClass( filter )( labelToNS, valToTag )( thing )
+		)
 	      )
-	  ) yield {
-	    new CnxnCtxtBranch[Namespace,Var,Tag](
-	      labelToNS( m.getName ),
-	      List( fromCC( m.invoke( cc ) ) )
-	    )
-	  }).toList
-
-	new CnxnCtxtBranch[Namespace,Var,Tag] (
-	  labelToNS( cc.getClass.getName ),
-	  facts
-	)
+	    }
+	    case Some(
+	      thingElse : AnyRef
+	    ) => {
+	      new CnxnCtxtLeaf[Namespace,Var,Tag](
+		Left( valToTag( thingElse ) )
+	      )
+	    }
+	    case None => {
+	      new CnxnCtxtLeaf[Namespace,Var,Tag](
+		Left( valToTag( "none" ) )
+	      )
+	    }
+	  }	  
+	}
+	else {
+	  val facts =
+	    (
+	      for( m <- caseClassAccessors( cc ) ) yield {
+		new CnxnCtxtBranch[Namespace,Var,Tag](
+		  labelToNS( m.getName ),
+		  List( fromCC( m.invoke( cc ) ) )
+		)
+	      }
+	    ).toList
+	  
+	  new CnxnCtxtBranch[Namespace,Var,Tag] (
+	    labelToNS( caseClassNameSpace( cc ) ),
+	    facts
+	  )
+	}
       }
     }
     fromCC( cc )
@@ -421,13 +509,13 @@ trait CnxnXML[Namespace,Var,Tag] {
     labelToNS : String => Namespace,
     valToTag : java.lang.Object => Tag
   )(
-    cc : Product
+    cc : ScalaObject with Product with Serializable
   ) : CnxnCtxtLabel[Namespace,Var,Tag] with Factual = {
     fromCaseClass( ( m : java.lang.reflect.Method ) => true )( labelToNS, valToTag )( cc )
   }
 
   def fromCaseClass(
-    cc : Product
+    cc : ScalaObject with Product with Serializable
   ) : CnxnCtxtLabel[String,String,String] with Factual = {    
     fromCaseClass [String,String,String] (
       ( x : String ) => x,
@@ -574,6 +662,72 @@ trait CnxnXML[Namespace,Var,Tag] {
 	None
       }
     }
+  }
+}
+
+trait CnxnConversionScope[Namespace,Var,Tag] {
+  type CnxnConversionType <: CnxnXML[Namespace,Var,Tag]
+  def protoCnxnConversions : CnxnConversionType
+  val cnxnConversions = protoCnxnConversions
+}
+
+object CnxnConversionStringScope
+   extends CnxnConversionScope[String,String,String]
+{
+  override type CnxnConversionType =
+    CnxnXML[String,String,String]
+      with CnxnCtxtInjector[String,String,String]
+      with Blobify 
+      with UUIDOps
+  object theCnxnConversions
+     extends CnxnXML[String,String,String]
+      with CnxnCtxtInjector[String,String,String]
+      with Blobify 
+      with UUIDOps
+  override def protoCnxnConversions = theCnxnConversions
+
+  def l2ns( s : String ) = {
+    // Heuristic to defeat REPL
+    val sp =
+      if (java.util.regex.Pattern.matches( ".*line.*read.*", s )) {
+	s.substring( s.lastIndexOf( "$" ) + 1, s.length )
+      }
+      else {
+	s
+      }
+    ( sp.substring( 0, 1 ).toLowerCase + sp.substring( 1, sp.length ) )
+  }
+  def v2t( obj: java.lang.Object ) : String = {
+    obj match {
+      case s : String => {
+	s
+      }      
+      case _ => obj + ""
+    }
+  }
+
+  implicit def asCnxnCtxtLabel(
+    s : String
+  ) : CnxnCtxtLabel[String,String,String]  with Factual = {
+    cnxnConversions.fromCaseClassInstanceString(
+      s
+    ).getOrElse(
+      null
+    ).asInstanceOf[CnxnCtxtLabel[String,String,String] with Factual]
+  }
+  
+  implicit def asCnxnCtxtLabel(
+    cc : ScalaObject with Product with Serializable
+  ) : CnxnCtxtLabel[String,String,String] with Factual = {        
+    cnxnConversions.fromCaseClass( l2ns, v2t )( cc )
+  }
+
+  implicit def asCnxnCtxtLabel(
+    e : Elem
+  ) : CnxnCtxtLabel[String,String,String]  with Factual = {
+    cnxnConversions.fromXML( l2ns, v2t )( e ).getOrElse(
+      null
+    )
   }
 }
 

@@ -304,3 +304,21 @@ package usage {
   }
 
 }
+
+/**
+
+I need to stick this code somewhere
+
+if ( isGet( message ) ) { 
+  reset { 
+    for( 
+      e <- kvdb1.get( getPattern( message ) ) 
+    ) { handle( e ) } 
+  } 
+} else if ( isPut( message ) ) { 
+  reset { 
+    kvdb1.put( getPattern( message ), getValue( message ) ) 
+  } 
+}
+
+*/

@@ -16,4 +16,14 @@ PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
     <url-pattern>/websocket</url-pattern>
   </servlet-mapping>
 
+  <servlet>
+    <servlet-name>querysocket</servlet-name>
+    <servlet-class>com.biosimilarity.lift.lib.websocket.QuerySocketServlet</servlet-class>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>querysocket</servlet-name>
+    <url-pattern>/querysocket</url-pattern>
+  </servlet-mapping>
+
 </web-app>
